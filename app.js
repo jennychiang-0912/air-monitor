@@ -23,7 +23,9 @@ const co2Chart = new Chart(ctx, {
       {
         label: "CO2",
         data: co2Data,
-        tension: 0.2
+        tension: 0.2,
+        borderWidth: 2,
+        pointRadius: 3
       }
     ]
   },
@@ -32,7 +34,7 @@ const co2Chart = new Chart(ctx, {
     animation: false,
     scales: {
       y: {
-        beginAtZero: true
+        beginAtZero: false
       }
     }
   }
@@ -63,7 +65,7 @@ connectBtn.addEventListener("click", async () => {
 
 async function readSerial() {
   const decoder = new TextDecoderStream();
-  const readableClosed = port.readable.pipeTo(decoder.writable);
+  port.readable.pipeTo(decoder.writable);
   reader = decoder.readable.getReader();
 
   let buffer = "";
@@ -83,7 +85,6 @@ async function readSerial() {
 
         rawData.textContent = cleanLine;
 
-        // 只處理符合感測器格式的資料
         if (cleanLine.includes("TIME=") && cleanLine.includes("MQ7=")) {
           parseData(cleanLine);
         }
@@ -100,29 +101,35 @@ async function readSerial() {
 }
 
 function parseData(line) {
-  const timeMatch = line.match(/TIME=([^|]+)/);
-  const mq7Match = line.match(/MQ7=(\d+)/);
-  const dustMatch = line.match(/Dust=(\d+)/);
-  const co2Match = line.match(/CO2=(\d+)/);
-  const tvocMatch = line.match(/TVOC=(\d+)/);
+  const parts = line.split("|").map(item => item.trim());
+  let parsed = {};
 
-  if (timeMatch) {
-    timeValue.textContent = timeMatch[1].trim();
+  for (const part of parts) {
+    const eqIndex = part.indexOf("=");
+    if (eqIndex > -1) {
+      const key = part.substring(0, eqIndex).trim();
+      const value = part.substring(eqIndex + 1).trim();
+      parsed[key] = value;
+    }
   }
 
-  if (mq7Match) {
-    mq7Value.textContent = mq7Match[1];
+  if (parsed["TIME"]) {
+    timeValue.textContent = parsed["TIME"];
   }
 
-  if (dustMatch) {
-    dustValue.textContent = dustMatch[1];
+  if (parsed["MQ7"]) {
+    mq7Value.textContent = parsed["MQ7"];
   }
 
-  if (co2Match) {
-    const co2 = Number(co2Match[1]);
+  if (parsed["Dust"]) {
+    dustValue.textContent = parsed["Dust"];
+  }
+
+  if (parsed["CO2"]) {
+    const co2 = Number(parsed["CO2"]);
     co2Value.textContent = co2;
 
-    const label = new Date().toLocaleTimeString();
+    const label = parsed["TIME"] ? parsed["TIME"].split(" ")[1] : new Date().toLocaleTimeString();
     co2Labels.push(label);
     co2Data.push(co2);
 
@@ -131,10 +138,27 @@ function parseData(line) {
       co2Data.shift();
     }
 
+    updateChartScale();
     co2Chart.update();
   }
 
-  if (tvocMatch) {
-    tvocValue.textContent = tvocMatch[1];
+  if (parsed["TVOC"]) {
+    tvocValue.textContent = parsed["TVOC"];
   }
+}
+
+function updateChartScale() {
+  if (co2Data.length === 0) return;
+
+  const minVal = Math.min(...co2Data);
+  const maxVal = Math.max(...co2Data);
+
+  let padding = Math.max(5, Math.ceil((maxVal - minVal) * 0.2));
+
+  if (minVal === maxVal) {
+    padding = 10;
+  }
+
+  co2Chart.options.scales.y.min = minVal - padding;
+  co2Chart.options.scales.y.max = maxVal + padding;
 }
