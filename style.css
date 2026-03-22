@@ -15,37 +15,35 @@ body {
   padding: 24px 20px 40px;
 }
 
+/* ===== 標題 ===== */
 .header-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 20px;
   flex-wrap: wrap;
+  gap: 20px;
 }
 
 .header-row h1 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 32px;
   font-weight: 800;
-  line-height: 1.2;
 }
 
 .time-display {
   font-size: 28px;
   font-weight: 800;
   color: #111827;
-  line-height: 1.2;
-  text-align: right;
 }
 
+/* ===== 副標 ===== */
 .subtitle {
-  margin: 4px 0 18px;
+  margin: 8px 0 18px;
   color: #6b7280;
   font-size: 18px;
-  font-weight: 500;
-  line-height: 1.4;
 }
 
+/* ===== 控制列 ===== */
 .top-bar {
   display: flex;
   align-items: center;
@@ -69,13 +67,28 @@ button:hover {
   background: #1d4ed8;
 }
 
+/* 👉 history 按鈕 */
+.nav-btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: white;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.nav-btn:hover {
+  background: #111827;
+}
+
 #status {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
-  line-height: 1.4;
 }
 
+/* ===== 卡片 ===== */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -86,7 +99,7 @@ button:hover {
 .card {
   background: #ffffff;
   border-radius: 18px;
-  padding: 20px 20px 18px;
+  padding: 20px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   margin-bottom: 22px;
 }
@@ -95,106 +108,71 @@ button:hover {
   margin: 0 0 2px;
   font-size: 20px;
   font-weight: 800;
-  line-height: 1.35;
 }
 
 .card small {
   display: block;
-  margin-top: 0;
   margin-bottom: 10px;
   color: #6b7280;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.45;
+  font-size: 15px;
 }
 
 .value {
-  margin: 0;
   font-size: 30px;
   font-weight: 800;
-  line-height: 1.2;
 }
 
-.good {
-  color: #16a34a;
-}
+.good { color: #16a34a; }
+.normal { color: #f59e0b; }
+.bad { color: #dc2626; }
 
-.normal {
-  color: #f59e0b;
-}
-
-.bad {
-  color: #dc2626;
-}
-
+/* ===== 原始資料 ===== */
 pre {
   margin: 0;
   background: #0f172a;
   color: #f8fafc;
-  padding: 14px 16px;
+  padding: 14px;
   border-radius: 14px;
   font-size: 14px;
-  line-height: 1.5;
-  overflow-x: auto;
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
-.chart-card {
-  padding-bottom: 22px;
-}
-
+/* ===== 圖表 ===== */
 .chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
   flex-wrap: wrap;
-}
-
-.chart-header h2 {
-  margin-bottom: 0;
+  gap: 12px;
 }
 
 select {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  font-size: 15px;
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 
 .chart-container {
   width: 100%;
   height: 360px;
   margin-top: 16px;
-  position: relative;
 }
 
-#mainChart {
-  width: 100% !important;
-  height: 100% !important;
-}
-
+/* ===== CSV下載 ===== */
 .download-row {
   display: flex;
-  align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+  align-items: center;
 }
 
 #downloadStatus {
   font-size: 15px;
-  color: #4b5563;
-  font-weight: 600;
 }
 
+/* ===== history頁共用 ===== */
 .query-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
 .query-row input {
@@ -206,51 +184,21 @@ select {
 .btn-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
+/* ===== 手機 ===== */
 @media (max-width: 768px) {
-  .container {
-    padding: 18px 14px 30px;
-  }
-
   .header-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
-  }
-
-  .header-row h1 {
-    font-size: 24px;
   }
 
   .time-display {
     font-size: 22px;
-    text-align: left;
-  }
-
-  .subtitle {
-    font-size: 16px;
-  }
-
-  #status {
-    font-size: 16px;
-  }
-
-  .card {
-    padding: 16px;
-  }
-
-  .card small {
-    font-size: 15px;
-  }
-
-  .value {
-    font-size: 28px;
   }
 
   .chart-container {
-    height: 300px;
+    height: 280px;
   }
 }
