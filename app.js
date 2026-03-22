@@ -18,6 +18,9 @@ const clearBtn = document.getElementById("clearBtn");
 const startTimeInput = document.getElementById("startTime");
 const endTimeInput = document.getElementById("endTime");
 const historyOutput = document.getElementById("historyOutput");
+const historyTable = document.getElementById("historyTable");
+const historyTableHead = historyTable ? historyTable.querySelector("thead") : null;
+const historyTableBody = historyTable ? historyTable.querySelector("tbody") : null;
 
 let port = null;
 let reader = null;
@@ -168,6 +171,7 @@ async function connectArduino() {
           if (historyOutput && shouldShowHistory) {
             historyOutput.textContent = "接收資料中...";
           }
+          hideHistoryTable();
           continue;
         }
 
@@ -184,7 +188,13 @@ async function connectArduino() {
           }
 
           if (shouldShowHistory) {
-            historyOutput.textContent = csvBuffer || "查無資料";
+            const hasData = csvBuffer.trim().length > 0;
+            if (hasData) {
+              renderHistoryTable(csvBuffer);
+            } else {
+              if (historyOutput) historyOutput.textContent = "查無資料";
+              hideHistoryTable();
+            }
             shouldShowHistory = false;
           }
 
@@ -227,11 +237,6 @@ if (downloadCsvBtn) {
 
 function normalizeQueryTime(input) {
   const text = input.trim();
-
-  // 支援：
-  // 2026/03/22 16
-  // 2026/03/22 16:00
-  // 最後都轉成 Arduino 要的 YYYY/MM/DD HH
   const match = text.match(/^(\d{4}\/\d{2}\/\d{2})\s+(\d{2})(?::\d{2})?$/);
   if (!match) return null;
 
@@ -266,6 +271,7 @@ if (queryBtn) {
     csvBuffer = "";
     shouldShowHistory = true;
     if (historyOutput) historyOutput.textContent = "查詢中...";
+    hideHistoryTable();
     await sendCommand(`QUERY,${start},${end}`);
   });
 }
@@ -282,6 +288,7 @@ if (clearBtn) {
 
     await sendCommand("CLEAR");
     if (historyOutput) historyOutput.textContent = "已送出清除指令";
+    hideHistoryTable();
   });
 }
 
@@ -397,6 +404,47 @@ function downloadCSV(text, filename = "air_data.csv") {
   a.click();
 
   URL.revokeObjectURL(url);
+}
+
+function hideHistoryTable() {
+  if (historyTable) historyTable.style.display = "none";
+  if (historyTableHead) historyTableHead.innerHTML = "";
+  if (historyTableBody) historyTableBody.innerHTML = "";
+}
+
+function renderHistoryTable(csvText) {
+  if (!historyTable || !historyTableHead || !historyTableBody) return;
+
+  const rows = csvText
+    .split("\n")
+    .map(row => row.trim())
+    .filter(row => row.length > 0);
+
+  if (rows.length === 0) {
+    if (historyOutput) historyOutput.textContent = "查無資料";
+    hideHistoryTable();
+    return;
+  }
+
+  const headers = rows[0].split(",");
+  const bodyRows = rows.slice(1).map(row => row.split(","));
+
+  historyTableHead.innerHTML = `
+    <tr>
+      ${headers.map(h => `<th>${h}</th>`).join("")}
+    </tr>
+  `;
+
+  historyTableBody.innerHTML = bodyRows
+    .map(cols => `
+      <tr>
+        ${cols.map(col => `<td>${col}</td>`).join("")}
+      </tr>
+    `)
+    .join("");
+
+  if (historyOutput) historyOutput.textContent = "";
+  historyTable.style.display = "table";
 }
 
 updateDisplayedChart("co2");
