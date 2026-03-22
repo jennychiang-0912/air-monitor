@@ -2,6 +2,7 @@ const connectBtn = document.getElementById("connectBtn");
 const statusText = document.getElementById("status");
 const rawData = document.getElementById("rawData");
 const chartSelector = document.getElementById("chartSelector");
+const chartTitle = document.getElementById("chartTitle");
 
 const timeValue = document.getElementById("timeValue");
 const mq7Value = document.getElementById("mq7Value");
@@ -9,50 +10,62 @@ const dustValue = document.getElementById("dustValue");
 const co2Value = document.getElementById("co2Value");
 const tvocValue = document.getElementById("tvocValue");
 
-let port, reader;
+let port = null;
+let reader = null;
 let lastMinute = null;
 
-// ===== 各項資料 =====
 const chartStore = {
   mq7: {
-    label: "一氧化碳（CO）",
+    title: "一氧化碳（CO）每分鐘變化",
+    label: "CO",
     labels: [],
     values: []
   },
   dust: {
-    label: "粉塵濃度",
+    title: "粉塵濃度每分鐘變化",
+    label: "Dust",
     labels: [],
     values: []
   },
   co2: {
-    label: "二氧化碳（CO₂）",
+    title: "二氧化碳（CO₂）每分鐘變化",
+    label: "CO₂",
     labels: [],
     values: []
   },
   tvoc: {
-    label: "揮發性有機物（TVOC）",
+    title: "揮發性有機物（TVOC）每分鐘變化",
+    label: "TVOC",
     labels: [],
     values: []
   }
 };
 
-// ===== 建立單一主圖 =====
 const ctx = document.getElementById("mainChart").getContext("2d");
 const mainChart = new Chart(ctx, {
   type: "line",
   data: {
     labels: chartStore.co2.labels,
-    datasets: [{
-      label: chartStore.co2.label,
-      data: chartStore.co2.values,
-      tension: 0.2,
-      borderWidth: 2,
-      pointRadius: 3
-    }]
+    datasets: [
+      {
+        label: chartStore.co2.label,
+        data: chartStore.co2.values,
+        tension: 0.25,
+        borderWidth: 2,
+        pointRadius: 3,
+        fill: false
+      }
+    ]
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
     animation: false,
+    plugins: {
+      legend: {
+        display: true
+      }
+    },
     scales: {
       y: {
         beginAtZero: false
@@ -61,7 +74,6 @@ const mainChart = new Chart(ctx, {
   }
 });
 
-// ===== 切換圖表 =====
 chartSelector.addEventListener("change", () => {
   updateDisplayedChart(chartSelector.value);
 });
@@ -69,6 +81,7 @@ chartSelector.addEventListener("change", () => {
 function updateDisplayedChart(type) {
   const selected = chartStore[type];
 
+  chartTitle.textContent = selected.title;
   mainChart.data.labels = selected.labels;
   mainChart.data.datasets[0].label = selected.label;
   mainChart.data.datasets[0].data = selected.values;
@@ -77,7 +90,6 @@ function updateDisplayedChart(type) {
   mainChart.update();
 }
 
-// ===== 連接 Arduino =====
 connectBtn.onclick = async () => {
   try {
     if (!("serial" in navigator)) {
@@ -120,16 +132,15 @@ connectBtn.onclick = async () => {
   }
 };
 
-// ===== 解析資料 =====
 function parse(line) {
   const parts = line.split("|").map(x => x.trim());
   let data = {};
 
-  parts.forEach(p => {
-    const eqIndex = p.indexOf("=");
+  parts.forEach(part => {
+    const eqIndex = part.indexOf("=");
     if (eqIndex !== -1) {
-      const key = p.substring(0, eqIndex).trim();
-      const value = p.substring(eqIndex + 1).trim();
+      const key = part.substring(0, eqIndex).trim();
+      const value = part.substring(eqIndex + 1).trim();
       data[key] = value;
     }
   });
@@ -154,13 +165,9 @@ function parse(line) {
     updateValue(tvocValue, Number(data.TVOC), 200, 400);
   }
 
-  // ===== 每分鐘只記錄一個點 =====
   if (data.TIME) {
-    let minuteLabel = null;
     const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
-    if (match) {
-      minuteLabel = match[1]; // HH:MM
-    }
+    const minuteLabel = match ? match[1] : null;
 
     if (minuteLabel && minuteLabel !== lastMinute) {
       lastMinute = minuteLabel;
@@ -181,13 +188,11 @@ function parse(line) {
         pushPoint("tvoc", minuteLabel, Number(data.TVOC));
       }
 
-      // 更新目前顯示中的圖
       updateDisplayedChart(chartSelector.value);
     }
   }
 }
 
-// ===== 儲存圖表點 =====
 function pushPoint(type, label, value) {
   const target = chartStore[type];
   target.labels.push(label);
@@ -199,7 +204,6 @@ function pushPoint(type, label, value) {
   }
 }
 
-// ===== 自動調整刻度 =====
 function updateChartScale(chart, values) {
   if (!values || values.length === 0) {
     chart.options.scales.y.min = 0;
@@ -211,7 +215,6 @@ function updateChartScale(chart, values) {
   const maxVal = Math.max(...values);
 
   let padding = Math.max(3, Math.ceil((maxVal - minVal) * 0.3));
-
   if (minVal === maxVal) {
     padding = 10;
   }
@@ -220,7 +223,6 @@ function updateChartScale(chart, values) {
   chart.options.scales.y.max = maxVal + padding;
 }
 
-// ===== 更新數值顏色 =====
 function updateValue(element, value, warn, danger) {
   element.textContent = value;
   element.classList.remove("good", "normal", "bad");
