@@ -4,16 +4,133 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>即時空氣品質監測系統</title>
-  <link rel="stylesheet" href="style.css" />
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: #f3f6fb;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 40px;
+      font-weight: 800;
+      color: #13294b;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: #6b7280;
+      margin-bottom: 20px;
+    }
+
+    .top-bar {
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #connectBtn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #status {
+      font-weight: 700;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #13294b;
+    }
+
+    .card small {
+      color: #6b7280;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .value {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .chart-card {
+      margin-bottom: 24px; /* 👉 圖表與下面區塊間距 */
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chart-wrap {
+      height: 350px;
+    }
+
+    select {
+      padding: 8px;
+      border-radius: 10px;
+    }
+
+    /* ⭐⭐ 重點：這行就是你要的間距 ⭐⭐ */
+    .raw-card {
+      margin-top: 24px;
+    }
+
+    .raw-card pre {
+      background: #071633;
+      color: #dbeafe;
+      padding: 14px;
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    .header-time {
+      font-weight: bold;
+    }
+
+  </style>
 </head>
+
 <body>
   <div class="container">
-    <header class="page-header">
-      <div class="title-row">
-        <h1>即時空氣品質監測系統</h1>
-        <div id="timeValue" class="header-time">--</div>
-      </div>
+    <header>
+      <h1>即時空氣品質監測系統</h1>
+      <div id="timeValue" class="header-time">--</div>
       <p class="subtitle">Arduino + Web Serial 即時監測</p>
     </header>
 
@@ -48,6 +165,7 @@
       </div>
     </section>
 
+    <!-- 圖表 -->
     <section class="card chart-card">
       <div class="chart-header">
         <div>
@@ -55,8 +173,8 @@
           <small>每分鐘記錄一個點</small>
         </div>
 
-        <div class="selector-group">
-          <label for="chartSelector">選擇圖表</label>
+        <div>
+          <label>選擇圖表</label><br>
           <select id="chartSelector">
             <option value="mq7">一氧化碳（CO）</option>
             <option value="dust">粉塵濃度</option>
@@ -71,10 +189,12 @@
       </div>
     </section>
 
+    <!-- 原始資料（已加間距） -->
     <section class="card raw-card">
       <h2>最近收到的原始資料</h2>
       <pre id="rawData">等待資料中...</pre>
     </section>
+
   </div>
 
   <script src="app.js"></script>
