@@ -1,269 +1,261 @@
-const connectBtn = document.getElementById("connectBtn");
-const statusText = document.getElementById("status");
-const rawData = document.getElementById("rawData");
-const chartSelector = document.getElementById("chartSelector");
-const chartTitle = document.getElementById("chartTitle");
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>即時空氣品質監測系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-const timeValue = document.getElementById("timeValue");
-const mq7Value = document.getElementById("mq7Value");
-const dustValue = document.getElementById("dustValue");
-const co2Value = document.getElementById("co2Value");
-const tvocValue = document.getElementById("tvocValue");
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: #f3f6fb;
+      color: #1f2d3d;
+    }
 
-let port = null;
-let reader = null;
-let lastMinute = null;
+    .container {
+      max-width: 1450px;
+      margin: 0 auto;
+      padding: 24px;
+    }
 
-const chartStore = {
-  mq7: {
-    title: "一氧化碳（CO）每分鐘變化",
-    label: "CO",
-    labels: [],
-    values: []
-  },
-  dust: {
-    title: "粉塵濃度每分鐘變化",
-    label: "Dust",
-    labels: [],
-    values: []
-  },
-  co2: {
-    title: "二氧化碳（CO₂）每分鐘變化",
-    label: "CO₂",
-    labels: [],
-    values: []
-  },
-  tvoc: {
-    title: "揮發性有機物（TVOC）每分鐘變化",
-    label: "TVOC",
-    labels: [],
-    values: []
-  }
-};
+    h1 {
+      margin: 0 0 8px;
+      font-size: 48px;
+      font-weight: 800;
+      color: #14294b;
+    }
 
-// 建立圖表前先確認 canvas 存在
-const mainChartCanvas = document.getElementById("mainChart");
-let mainChart = null;
+    .subtitle {
+      font-size: 20px;
+      color: #607089;
+      margin-bottom: 28px;
+    }
 
-if (mainChartCanvas) {
-  const ctx = mainChartCanvas.getContext("2d");
-  mainChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: chartStore.co2.labels,
-      datasets: [
-        {
-          label: chartStore.co2.label,
-          data: chartStore.co2.values,
-          tension: 0.25,
-          borderWidth: 2,
-          pointRadius: 3,
-          fill: false
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: {
-          display: true
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: false
-        }
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    #connectBtn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #status {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 22px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+      min-height: 150px;
+    }
+
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      color: #13294b;
+    }
+
+    .card p {
+      margin: 0 0 24px;
+      color: #6b7280;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .value {
+      font-size: 38px;
+      font-weight: 800;
+      color: #13294b;
+    }
+
+    .section {
+      background: #fff;
+      border-radius: 24px;
+      padding: 26px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+      margin-bottom: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: #13294b;
+    }
+
+    .section-subtitle {
+      margin-top: 6px;
+      font-size: 16px;
+      color: #6b7280;
+    }
+
+    .selector-box label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #4b5563;
+    }
+
+    #chartSelector {
+      width: 260px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid #d1d5db;
+      font-size: 16px;
+      background: #fff;
+    }
+
+    .raw-box {
+      background: #071633;
+      color: #dbeafe;
+      border-radius: 18px;
+      padding: 18px;
+      font-size: 20px;
+      font-weight: 600;
+      min-height: 64px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 360px;
+    }
+
+    .good { color: #15803d; }
+    .normal { color: #d97706; }
+    .bad { color: #dc2626; }
+
+    @media (max-width: 1200px) {
+      .card-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
     }
-  });
-}
 
-if (chartSelector) {
-  chartSelector.addEventListener("change", () => {
-    updateDisplayedChart(chartSelector.value);
-  });
-}
-
-function updateDisplayedChart(type) {
-  if (!mainChart) return;
-
-  const selected = chartStore[type];
-  if (!selected) return;
-
-  if (chartTitle) {
-    chartTitle.textContent = selected.title;
-  }
-
-  mainChart.data.labels = selected.labels;
-  mainChart.data.datasets[0].label = selected.label;
-  mainChart.data.datasets[0].data = selected.values;
-
-  updateChartScale(mainChart, selected.values);
-  mainChart.update();
-}
-
-if (connectBtn) {
-  connectBtn.onclick = async () => {
-    try {
-      if (!("serial" in navigator)) {
-        if (statusText) statusText.textContent = "此瀏覽器不支援 Web Serial";
-        if (rawData) rawData.textContent = "請改用 Chrome 或 Edge";
-        return;
+    @media (max-width: 700px) {
+      .card-grid {
+        grid-template-columns: 1fr;
       }
 
-      port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 9600 });
-
-      if (statusText) statusText.textContent = "已連接 Arduino";
-
-      const decoder = new TextDecoderStream();
-      port.readable.pipeTo(decoder.writable);
-      reader = decoder.readable.getReader();
-
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += value;
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-
-        for (let line of lines) {
-          line = line.trim();
-          if (!line) continue;
-
-          if (rawData) rawData.textContent = line;
-
-          try {
-            parse(line);
-          } catch (err) {
-            console.error("parse error:", err);
-          }
-        }
-      }
-    } catch (error) {
-      if (statusText) statusText.textContent = "連接失敗";
-      if (rawData) rawData.textContent = `錯誤：${error.name} - ${error.message}`;
-      console.error(error);
-    }
-  };
-}
-
-function parse(line) {
-  const parts = line.split("|").map(x => x.trim());
-  let data = {};
-
-  parts.forEach(part => {
-    const eqIndex = part.indexOf("=");
-    if (eqIndex !== -1) {
-      const key = part.substring(0, eqIndex).trim();
-      const value = part.substring(eqIndex + 1).trim();
-      data[key] = value;
-    }
-  });
-
-  if (data.TIME && timeValue) {
-    timeValue.textContent = data.TIME;
-  }
-
-  if (data.MQ7 && mq7Value) {
-    updateValue(mq7Value, Number(data.MQ7), 200, 400);
-  }
-
-  if (data.Dust && dustValue) {
-    updateValue(dustValue, Number(data.Dust), 300, 600);
-  }
-
-  if (data.CO2 && co2Value) {
-    updateValue(co2Value, Number(data.CO2), 800, 1200);
-  }
-
-  if (data.TVOC && tvocValue) {
-    updateValue(tvocValue, Number(data.TVOC), 200, 400);
-  }
-
-  if (data.TIME) {
-    const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
-    const minuteLabel = match ? match[1] : null;
-
-    if (minuteLabel && minuteLabel !== lastMinute) {
-      lastMinute = minuteLabel;
-
-      if (data.MQ7) {
-        pushPoint("mq7", minuteLabel, Number(data.MQ7));
+      h1 {
+        font-size: 34px;
       }
 
-      if (data.Dust) {
-        pushPoint("dust", minuteLabel, Number(data.Dust));
-      }
-
-      if (data.CO2) {
-        pushPoint("co2", minuteLabel, Number(data.CO2));
-      }
-
-      if (data.TVOC) {
-        pushPoint("tvoc", minuteLabel, Number(data.TVOC));
-      }
-
-      if (chartSelector) {
-        updateDisplayedChart(chartSelector.value);
+      .chart-wrap {
+        height: 280px;
       }
     }
-  }
-}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>即時空氣品質監測系統</h1>
+    <div class="subtitle">Arduino + Web Serial 即時監測</div>
 
-function pushPoint(type, label, value) {
-  const target = chartStore[type];
-  if (!target) return;
+    <div class="top-bar">
+      <button id="connectBtn">連接 Arduino</button>
+      <div id="status">尚未連接</div>
+    </div>
 
-  target.labels.push(label);
-  target.values.push(value);
+    <div class="card-grid">
+      <div class="card">
+        <h3>時間</h3>
+        <p>RTC 即時時間</p>
+        <div class="value" id="timeValue">--</div>
+      </div>
 
-  if (target.labels.length > 20) {
-    target.labels.shift();
-    target.values.shift();
-  }
-}
+      <div class="card">
+        <h3>一氧化碳（CO）</h3>
+        <p>由 MQ-7 感測器測得</p>
+        <div class="value" id="mq7Value">--</div>
+      </div>
 
-function updateChartScale(chart, values) {
-  if (!chart) return;
+      <div class="card">
+        <h3>粉塵濃度</h3>
+        <p>空氣中懸浮粒子變化</p>
+        <div class="value" id="dustValue">--</div>
+      </div>
 
-  if (!values || values.length === 0) {
-    chart.options.scales.y.min = 0;
-    chart.options.scales.y.max = 100;
-    return;
-  }
+      <div class="card">
+        <h3>二氧化碳（CO₂）</h3>
+        <p>由 CCS811 感測器測得</p>
+        <div class="value" id="co2Value">--</div>
+      </div>
 
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+      <div class="card">
+        <h3>揮發性有機物（TVOC）</h3>
+        <p>空氣中氣體污染程度</p>
+        <div class="value" id="tvocValue">--</div>
+      </div>
+    </div>
 
-  let padding = Math.max(3, Math.ceil((maxVal - minVal) * 0.3));
-  if (minVal === maxVal) {
-    padding = 10;
-  }
+    <!-- 圖表區 -->
+    <div class="section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
+          <div class="section-subtitle">每分鐘記錄一個點</div>
+        </div>
 
-  chart.options.scales.y.min = minVal - padding;
-  chart.options.scales.y.max = maxVal + padding;
-}
+        <div class="selector-box">
+          <label for="chartSelector">選擇圖表</label>
+          <select id="chartSelector">
+            <option value="co2">二氧化碳（CO₂）</option>
+            <option value="mq7">一氧化碳（CO）</option>
+            <option value="dust">粉塵濃度</option>
+            <option value="tvoc">揮發性有機物（TVOC）</option>
+          </select>
+        </div>
+      </div>
 
-function updateValue(element, value, warn, danger) {
-  if (!element) return;
+      <div class="chart-wrap">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </div>
 
-  element.textContent = value;
-  element.classList.remove("good", "normal", "bad");
+    <!-- 原始資料區：移到最下面 -->
+    <div class="section">
+      <h2 class="section-title">最近收到的原始資料</h2>
+      <div class="raw-box" id="rawData">等待資料中...</div>
+    </div>
+  </div>
 
-  if (value < warn) {
-    element.classList.add("good");
-  } else if (value < danger) {
-    element.classList.add("normal");
-  } else {
-    element.classList.add("bad");
-  }
-}
-
-// 預設顯示 CO2 圖
-updateDisplayedChart("co2");
+  <script src="app.js"></script>
+</body>
+</html>
