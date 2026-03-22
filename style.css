@@ -1,204 +1,103 @@
-* {
-  box-sizing: border-box;
-}
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>即時空氣品質監測系統</title>
 
-body {
-  margin: 0;
-  font-family: Arial, "Noto Sans TC", sans-serif;
-  background: #f3f6fb;
-  color: #1f2937;
-}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 20px 40px;
-}
+<body>
 
-/* ===== 標題 ===== */
-.header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 20px;
-}
+<div class="container">
 
-.header-row h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 800;
-}
+  <!-- 標題 + 時間 -->
+  <div class="header-row">
+    <h1>即時空氣品質監測系統</h1>
+    <div id="timeValue" class="time-display">--</div>
+  </div>
 
-.time-display {
-  font-size: 28px;
-  font-weight: 800;
-  color: #111827;
-}
+  <p class="subtitle">Arduino + Web Serial 即時監測</p>
 
-/* ===== 副標 ===== */
-.subtitle {
-  margin: 8px 0 18px;
-  color: #6b7280;
-  font-size: 18px;
-}
+  <!-- 控制列 -->
+  <div class="top-bar">
+    <button id="connectBtn">連接 Arduino</button>
+    <span id="status">尚未連接</span>
 
-/* ===== 控制列 ===== */
-.top-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
+    <!-- 👉 新增歷史頁入口 -->
+    <a href="history.html" class="nav-btn">查看歷史資料</a>
+  </div>
 
-button {
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 700;
-}
+  <!-- 卡片 -->
+  <div class="card-grid">
 
-button:hover {
-  background: #1d4ed8;
-}
+    <div class="card">
+      <h2>一氧化碳（CO）</h2>
+      <small>由 MQ-7 感測器測得</small>
+      <p id="mq7Value" class="value">--</p>
+    </div>
 
-/* 👉 history 按鈕 */
-.nav-btn {
-  display: inline-block;
-  padding: 10px 18px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: white;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 700;
-}
+    <div class="card">
+      <h2>粉塵濃度</h2>
+      <small>空氣中懸浮粒子變化</small>
+      <p id="dustValue" class="value">--</p>
+    </div>
 
-.nav-btn:hover {
-  background: #111827;
-}
+    <div class="card">
+      <h2>二氧化碳（CO₂）</h2>
+      <small>由 CCS811 感測器測得</small>
+      <p id="co2Value" class="value">--</p>
+    </div>
 
-#status {
-  font-size: 18px;
-  font-weight: 600;
-}
+    <div class="card">
+      <h2>總揮發性有機物（TVOC）</h2>
+      <small>空氣污染程度指標</small>
+      <p id="tvocValue" class="value">--</p>
+    </div>
 
-/* ===== 卡片 ===== */
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 18px;
-  margin-bottom: 22px;
-}
+  </div>
 
-.card {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 20px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  margin-bottom: 22px;
-}
+  <!-- 原始資料 -->
+  <div class="card">
+    <h2>最近收到的原始資料</h2>
+    <pre id="rawData">等待資料中...</pre>
+  </div>
 
-.card h2 {
-  margin: 0 0 2px;
-  font-size: 20px;
-  font-weight: 800;
-}
+  <!-- 圖表 -->
+  <div class="card chart-card">
 
-.card small {
-  display: block;
-  margin-bottom: 10px;
-  color: #6b7280;
-  font-size: 15px;
-}
+    <div class="chart-header">
+      <h2 id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
 
-.value {
-  font-size: 30px;
-  font-weight: 800;
-}
+      <select id="chartSelector">
+        <option value="co2">CO₂</option>
+        <option value="mq7">CO</option>
+        <option value="dust">Dust</option>
+        <option value="tvoc">TVOC</option>
+      </select>
+    </div>
 
-.good { color: #16a34a; }
-.normal { color: #f59e0b; }
-.bad { color: #dc2626; }
+    <div class="chart-container">
+      <canvas id="mainChart"></canvas>
+    </div>
 
-/* ===== 原始資料 ===== */
-pre {
-  margin: 0;
-  background: #0f172a;
-  color: #f8fafc;
-  padding: 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  white-space: pre-wrap;
-}
+  </div>
 
-/* ===== 圖表 ===== */
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
+  <!-- CSV下載 -->
+  <div class="card">
+    <h2>資料下載</h2>
+    <small>將 Arduino EEPROM 中已儲存的資料匯出成 CSV</small>
 
-select {
-  padding: 8px 10px;
-  border-radius: 8px;
-}
+    <div class="download-row">
+      <button id="downloadCsvBtn">下載 CSV</button>
+      <span id="downloadStatus">尚未下載</span>
+    </div>
+  </div>
 
-.chart-container {
-  width: 100%;
-  height: 360px;
-  margin-top: 16px;
-}
+</div>
 
-/* ===== CSV下載 ===== */
-.download-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-#downloadStatus {
-  font-size: 15px;
-}
-
-/* ===== history頁共用 ===== */
-.query-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.query-row input {
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
-
-.btn-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* ===== 手機 ===== */
-@media (max-width: 768px) {
-  .header-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .time-display {
-    font-size: 22px;
-  }
-
-  .chart-container {
-    height: 280px;
-  }
-}
+<script src="app.js"></script>
+</body>
+</html>
