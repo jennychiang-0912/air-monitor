@@ -18,6 +18,7 @@ const clearBtn = document.getElementById("clearBtn");
 const startTimeInput = document.getElementById("startTime");
 const endTimeInput = document.getElementById("endTime");
 const historyOutput = document.getElementById("historyOutput");
+
 const historyTable = document.getElementById("historyTable");
 const historyTableHead = historyTable ? historyTable.querySelector("thead") : null;
 const historyTableBody = historyTable ? historyTable.querySelector("tbody") : null;
@@ -30,6 +31,12 @@ let isCSVMode = false;
 let csvBuffer = "";
 let shouldDownloadCSV = false;
 let shouldShowHistory = false;
+
+// true = 圖表顯示歷史查詢結果
+// false = 圖表顯示即時資料
+let chartUsingHistoryData = false;
+
+const MAX_CHART_POINTS = 20;
 
 const chartStore = {
   mq7: {
@@ -52,6 +59,33 @@ const chartStore = {
   },
   tvoc: {
     title: "揮發性有機物（TVOC）每分鐘變化",
+    label: "TVOC",
+    labels: [],
+    values: []
+  }
+};
+
+const historyChartStore = {
+  mq7: {
+    title: "一氧化碳（CO）歷史查詢結果",
+    label: "CO",
+    labels: [],
+    values: []
+  },
+  dust: {
+    title: "粉塵濃度歷史查詢結果",
+    label: "Dust",
+    labels: [],
+    values: []
+  },
+  co2: {
+    title: "二氧化碳（CO₂）歷史查詢結果",
+    label: "CO₂",
+    labels: [],
+    values: []
+  },
+  tvoc: {
+    title: "揮發性有機物（TVOC）歷史查詢結果",
     label: "TVOC",
     labels: [],
     values: []
@@ -88,6 +122,13 @@ if (mainChartCanvas) {
         }
       },
       scales: {
+        x: {
+          ticks: {
+            autoSkip: false,
+            maxRotation: 0,
+            minRotation: 0
+          }
+        },
         y: {
           beginAtZero: false
         }
@@ -102,10 +143,15 @@ if (chartSelector) {
   });
 }
 
+function getActiveStore() {
+  return chartUsingHistoryData ? historyChartStore : chartStore;
+}
+
 function updateDisplayedChart(type) {
   if (!mainChart) return;
 
-  const selected = chartStore[type];
+  const activeStore = getActiveStore();
+  const selected = activeStore[type];
   if (!selected) return;
 
   if (chartTitle) {
@@ -142,7 +188,7 @@ async function connectArduino() {
 
     if (statusText) statusText.textContent = "請選擇 Arduino...";
     port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 9600 });
+    await port.open({ baudRate: 115200 });
 
     if (statusText) statusText.textContent = "已連接 Arduino";
     if (downloadStatus) downloadStatus.textContent = "尚未下載";
@@ -188,12 +234,13 @@ async function connectArduino() {
           }
 
           if (shouldShowHistory) {
-            const hasData = csvBuffer.trim().length > 0;
-            if (hasData) {
+            if (csvBuffer.trim()) {
               renderHistoryTable(csvBuffer);
+              renderHistoryChart(csvBuffer);
             } else {
               if (historyOutput) historyOutput.textContent = "查無資料";
               hideHistoryTable();
+              clearHistoryChart();
             }
             shouldShowHistory = false;
           }
@@ -289,6 +336,7 @@ if (clearBtn) {
     await sendCommand("CLEAR");
     if (historyOutput) historyOutput.textContent = "已送出清除指令";
     hideHistoryTable();
+    clearHistoryChart();
   });
 }
 
@@ -328,16 +376,19 @@ function parse(line) {
     updateValue(tvocValue, Number(data.TVOC), 200, 400);
   }
 
+  // 即時資料只在非歷史模式下更新圖表
+  if (chartUsingHistoryData) return;
+
   const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
   const minuteLabel = match ? match[1] : null;
 
   if (minuteLabel && minuteLabel !== lastMinute) {
     lastMinute = minuteLabel;
 
-    if (data.MQ7 !== undefined) pushPoint("mq7", minuteLabel, Number(data.MQ7));
-    if (data.Dust !== undefined) pushPoint("dust", minuteLabel, Number(data.Dust));
-    if (data.CO2 !== undefined) pushPoint("co2", minuteLabel, Number(data.CO2));
-    if (data.TVOC !== undefined) pushPoint("tvoc", minuteLabel, Number(data.TVOC));
+    if (data.MQ7 !== undefined) pushPoint(chartStore.mq7, minuteLabel, Number(data.MQ7));
+    if (data.Dust !== undefined) pushPoint(chartStore.dust, minuteLabel, Number(data.Dust));
+    if (data.CO2 !== undefined) pushPoint(chartStore.co2, minuteLabel, Number(data.CO2));
+    if (data.TVOC !== undefined) pushPoint(chartStore.tvoc, minuteLabel, Number(data.TVOC));
 
     if (chartSelector) {
       updateDisplayedChart(chartSelector.value);
@@ -345,16 +396,13 @@ function parse(line) {
   }
 }
 
-function pushPoint(type, label, value) {
-  const target = chartStore[type];
-  if (!target) return;
+function pushPoint(storeItem, label, value) {
+  storeItem.labels.push(label);
+  storeItem.values.push(value);
 
-  target.labels.push(label);
-  target.values.push(value);
-
-  if (target.labels.length > 20) {
-    target.labels.shift();
-    target.values.shift();
+  if (storeItem.labels.length > MAX_CHART_POINTS) {
+    storeItem.labels.shift();
+    storeItem.values.shift();
   }
 }
 
@@ -445,6 +493,70 @@ function renderHistoryTable(csvText) {
 
   if (historyOutput) historyOutput.textContent = "";
   historyTable.style.display = "table";
+}
+
+function clearHistoryChart() {
+  for (const key of Object.keys(historyChartStore)) {
+    historyChartStore[key].labels = [];
+    historyChartStore[key].values = [];
+  }
+  chartUsingHistoryData = false;
+  updateDisplayedChart(chartSelector ? chartSelector.value : "co2");
+}
+
+function renderHistoryChart(csvText) {
+  const rows = csvText
+    .split("\n")
+    .map(row => row.trim())
+    .filter(row => row.length > 0);
+
+  if (rows.length <= 1) {
+    clearHistoryChart();
+    return;
+  }
+
+  for (const key of Object.keys(historyChartStore)) {
+    historyChartStore[key].labels = [];
+    historyChartStore[key].values = [];
+  }
+
+  const dataRows = rows.slice(1).map(row => row.split(","));
+
+  // 只取最後 20 筆
+  const lastRows = dataRows.slice(-MAX_CHART_POINTS);
+
+  for (const cols of lastRows) {
+    if (cols.length < 5) continue;
+
+    const time = cols[0];
+    const mq7 = Number(cols[1]);
+    const dust = Number(cols[2]);
+    const co2 = Number(cols[3]);
+    const tvoc = Number(cols[4]);
+
+    const label = extractChartLabel(time);
+
+    historyChartStore.mq7.labels.push(label);
+    historyChartStore.mq7.values.push(mq7);
+
+    historyChartStore.dust.labels.push(label);
+    historyChartStore.dust.values.push(dust);
+
+    historyChartStore.co2.labels.push(label);
+    historyChartStore.co2.values.push(co2);
+
+    historyChartStore.tvoc.labels.push(label);
+    historyChartStore.tvoc.values.push(tvoc);
+  }
+
+  chartUsingHistoryData = true;
+  updateDisplayedChart(chartSelector ? chartSelector.value : "co2");
+}
+
+function extractChartLabel(timeText) {
+  // 2026/03/22 16:00 -> 16:00
+  const match = timeText.match(/(\d{2}:\d{2})$/);
+  return match ? match[1] : timeText;
 }
 
 updateDisplayedChart("co2");
