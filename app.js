@@ -13,12 +13,20 @@ const tvocValue = document.getElementById("tvocValue");
 const downloadCsvBtn = document.getElementById("downloadCsvBtn");
 const downloadStatus = document.getElementById("downloadStatus");
 
+const queryBtn = document.getElementById("queryBtn");
+const clearBtn = document.getElementById("clearBtn");
+const startTimeInput = document.getElementById("startTime");
+const endTimeInput = document.getElementById("endTime");
+const historyOutput = document.getElementById("historyOutput");
+
 let port = null;
 let reader = null;
 let lastMinute = null;
+
 let isCSVMode = false;
 let csvBuffer = "";
 let shouldDownloadCSV = false;
+let shouldShowHistory = false;
 
 const chartStore = {
   mq7: {
@@ -93,7 +101,6 @@ if (chartSelector) {
 
 function updateDisplayedChart(type) {
   if (!mainChart) return;
-
   const selected = chartStore[type];
   if (!selected) return;
 
@@ -157,6 +164,9 @@ async function connectArduino() {
         if (line === "TYPE=CSV_BEGIN") {
           isCSVMode = true;
           csvBuffer = "";
+          if (historyOutput && shouldShowHistory) {
+            historyOutput.textContent = "接收資料中...";
+          }
           continue;
         }
 
@@ -171,6 +181,12 @@ async function connectArduino() {
             shouldDownloadCSV = false;
             if (downloadStatus) downloadStatus.textContent = "沒有可下載資料";
           }
+
+          if (shouldShowHistory) {
+            historyOutput.textContent = csvBuffer || "查無資料";
+            shouldShowHistory = false;
+          }
+
           continue;
         }
 
@@ -180,7 +196,6 @@ async function connectArduino() {
         }
 
         if (rawData) rawData.textContent = line;
-
         parse(line);
       }
     }
@@ -209,6 +224,43 @@ if (downloadCsvBtn) {
   });
 }
 
+if (queryBtn) {
+  queryBtn.addEventListener("click", async () => {
+    const start = startTimeInput.value.trim();
+    const end = endTimeInput.value.trim();
+
+    if (!start || !end) {
+      alert("請輸入開始與結束時間");
+      return;
+    }
+
+    if (!port) {
+      alert("請先連接 Arduino");
+      return;
+    }
+
+    csvBuffer = "";
+    shouldShowHistory = true;
+    if (historyOutput) historyOutput.textContent = "查詢中...";
+    await sendCommand(`QUERY,${start},${end}`);
+  });
+}
+
+if (clearBtn) {
+  clearBtn.addEventListener("click", async () => {
+    if (!port) {
+      alert("請先連接 Arduino");
+      return;
+    }
+
+    const ok = confirm("確定要清除 EEPROM 資料嗎？");
+    if (!ok) return;
+
+    await sendCommand("CLEAR");
+    if (historyOutput) historyOutput.textContent = "已送出清除指令";
+  });
+}
+
 function parse(line) {
   const parts = line.split("|").map(x => x.trim());
   const data = {};
@@ -222,15 +274,13 @@ function parse(line) {
     }
   }
 
-  // 只處理即時資料
   if (data.TYPE !== "LIVE") return;
+  if (!data.TIME) return;
 
-  // 更新時間
-  if (timeValue && data.TIME) {
+  if (timeValue) {
     timeValue.textContent = data.TIME;
   }
 
-  // 更新數值卡片
   if (mq7Value && data.MQ7 !== undefined) {
     updateValue(mq7Value, Number(data.MQ7), 200, 400);
   }
@@ -247,22 +297,19 @@ function parse(line) {
     updateValue(tvocValue, Number(data.TVOC), 200, 400);
   }
 
-  // 更新圖表（每分鐘一點）
-  if (data.TIME) {
-    const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
-    const minuteLabel = match ? match[1] : null;
+  const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
+  const minuteLabel = match ? match[1] : null;
 
-    if (minuteLabel && minuteLabel !== lastMinute) {
-      lastMinute = minuteLabel;
+  if (minuteLabel && minuteLabel !== lastMinute) {
+    lastMinute = minuteLabel;
 
-      if (data.MQ7 !== undefined) pushPoint("mq7", minuteLabel, Number(data.MQ7));
-      if (data.Dust !== undefined) pushPoint("dust", minuteLabel, Number(data.Dust));
-      if (data.CO2 !== undefined) pushPoint("co2", minuteLabel, Number(data.CO2));
-      if (data.TVOC !== undefined) pushPoint("tvoc", minuteLabel, Number(data.TVOC));
+    if (data.MQ7 !== undefined) pushPoint("mq7", minuteLabel, Number(data.MQ7));
+    if (data.Dust !== undefined) pushPoint("dust", minuteLabel, Number(data.Dust));
+    if (data.CO2 !== undefined) pushPoint("co2", minuteLabel, Number(data.CO2));
+    if (data.TVOC !== undefined) pushPoint("tvoc", minuteLabel, Number(data.TVOC));
 
-      if (chartSelector) {
-        updateDisplayedChart(chartSelector.value);
-      }
+    if (chartSelector) {
+      updateDisplayedChart(chartSelector.value);
     }
   }
 }
