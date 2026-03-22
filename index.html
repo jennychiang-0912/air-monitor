@@ -4,16 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>即時空氣品質監測系統</title>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
 <div class="container">
 
-  <!-- 標題 + 時間 -->
   <div class="header-row">
     <h1>即時空氣品質監測系統</h1>
     <div id="timeValue" class="time-display">--</div>
@@ -21,16 +18,11 @@
 
   <p class="subtitle">Arduino + Web Serial 即時監測</p>
 
-  <!-- 控制列 -->
   <div class="top-bar">
     <button id="connectBtn">連接 Arduino</button>
     <span id="status">尚未連接</span>
-
-    <!-- 👉 新增歷史頁入口 -->
-    <a href="history.html" class="nav-btn">查看歷史資料</a>
   </div>
 
-  <!-- 卡片 -->
   <div class="card-grid">
 
     <div class="card">
@@ -59,15 +51,12 @@
 
   </div>
 
-  <!-- 原始資料 -->
   <div class="card">
     <h2>最近收到的原始資料</h2>
     <pre id="rawData">等待資料中...</pre>
   </div>
 
-  <!-- 圖表 -->
   <div class="card chart-card">
-
     <div class="chart-header">
       <h2 id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
 
@@ -82,18 +71,33 @@
     <div class="chart-container">
       <canvas id="mainChart"></canvas>
     </div>
-
   </div>
 
-  <!-- CSV下載 -->
   <div class="card">
     <h2>資料下載</h2>
     <small>將 Arduino EEPROM 中已儲存的資料匯出成 CSV</small>
 
     <div class="download-row">
-      <button id="downloadCsvBtn">下載 CSV</button>
+      <button id="downloadCsvBtn">下載全部 CSV</button>
       <span id="downloadStatus">尚未下載</span>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>歷史資料查詢</h2>
+    <small>格式：YYYY/MM/DD HH</small>
+
+    <div class="query-row">
+      <input id="startTime" placeholder="開始：2026/03/22 10">
+      <input id="endTime" placeholder="結束：2026/03/22 14">
+    </div>
+
+    <div class="btn-row">
+      <button id="queryBtn">查詢資料</button>
+      <button id="clearBtn">清除資料</button>
+    </div>
+
+    <pre id="historyOutput">尚未查詢</pre>
   </div>
 
 </div>
