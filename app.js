@@ -10,10 +10,15 @@ const dustValue = document.getElementById("dustValue");
 const co2Value = document.getElementById("co2Value");
 const tvocValue = document.getElementById("tvocValue");
 
+const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+const downloadStatus = document.getElementById("downloadStatus");
+
 let port = null;
 let reader = null;
 let lastMinute = null;
 let isCSVMode = false;
+let csvBuffer = "";
+let shouldDownloadCSV = false;
 
 const chartStore = {
   mq7: {
@@ -103,6 +108,18 @@ function updateDisplayedChart(type) {
   mainChart.update();
 }
 
+async function sendCommand(cmd) {
+  if (!port || !port.writable) {
+    alert("請先連接 Arduino");
+    return;
+  }
+
+  const encoder = new TextEncoder();
+  const writer = port.writable.getWriter();
+  await writer.write(encoder.encode(cmd + "\n"));
+  writer.releaseLock();
+}
+
 async function connectArduino() {
   try {
     if (!("serial" in navigator)) {
@@ -116,6 +133,7 @@ async function connectArduino() {
     await port.open({ baudRate: 9600 });
 
     if (statusText) statusText.textContent = "已連接 Arduino";
+    if (downloadStatus) downloadStatus.textContent = "尚未下載";
 
     const decoder = new TextDecoderStream();
     port.readable.pipeTo(decoder.writable);
@@ -135,18 +153,28 @@ async function connectArduino() {
         line = line.trim();
         if (!line) continue;
 
-        // 忽略歷史查詢/匯出 CSV 區塊
         if (line === "CSV_BEGIN") {
           isCSVMode = true;
+          csvBuffer = "";
           continue;
         }
 
         if (line === "CSV_END") {
           isCSVMode = false;
+
+          if (shouldDownloadCSV && csvBuffer.trim()) {
+            downloadCSV(csvBuffer, "air_data.csv");
+            shouldDownloadCSV = false;
+            if (downloadStatus) downloadStatus.textContent = "下載完成";
+          } else if (shouldDownloadCSV) {
+            shouldDownloadCSV = false;
+            if (downloadStatus) downloadStatus.textContent = "沒有可下載資料";
+          }
           continue;
         }
 
         if (isCSVMode) {
+          csvBuffer += line + "\n";
           continue;
         }
 
@@ -170,6 +198,20 @@ if (connectBtn) {
   connectBtn.addEventListener("click", connectArduino);
 }
 
+if (downloadCsvBtn) {
+  downloadCsvBtn.addEventListener("click", async () => {
+    if (!port) {
+      alert("請先連接 Arduino");
+      return;
+    }
+
+    csvBuffer = "";
+    shouldDownloadCSV = true;
+    if (downloadStatus) downloadStatus.textContent = "下載中...";
+    await sendCommand("EXPORT");
+  });
+}
+
 function parse(line) {
   const parts = line.split("|").map(x => x.trim());
   const data = {};
@@ -183,7 +225,6 @@ function parse(line) {
     }
   });
 
-  // 只處理即時資料
   if (data.LIVE !== "1") return;
 
   if (data.TIME && timeValue) {
@@ -274,6 +315,17 @@ function updateValue(element, value, warn, danger) {
   }
 }
 
-// 預設顯示 CO₂ 圖
+function downloadCSV(text, filename = "air_data.csv") {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
 updateDisplayedChart("co2");
 console.log("app.js loaded");
