@@ -153,13 +153,13 @@ async function connectArduino() {
         line = line.trim();
         if (!line) continue;
 
-        if (line === "CSV_BEGIN") {
+        if (line === "TYPE=CSV_BEGIN") {
           isCSVMode = true;
           csvBuffer = "";
           continue;
         }
 
-        if (line === "CSV_END") {
+        if (line === "TYPE=CSV_END") {
           isCSVMode = false;
 
           if (shouldDownloadCSV && csvBuffer.trim()) {
@@ -178,7 +178,7 @@ async function connectArduino() {
           continue;
         }
 
-        if (rawData) rawData.textContent = line;
+        if (rawData) rawData.textContent = line.replace("TYPE=LIVE | ", "");
 
         try {
           parse(line);
@@ -225,7 +225,7 @@ function parse(line) {
     }
   });
 
-  if (data.LIVE !== "1") return;
+  if (data.TYPE !== "LIVE") return;
 
   if (data.TIME && timeValue) {
     timeValue.textContent = data.TIME;
