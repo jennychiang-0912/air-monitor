@@ -101,6 +101,7 @@ if (chartSelector) {
 
 function updateDisplayedChart(type) {
   if (!mainChart) return;
+
   const selected = chartStore[type];
   if (!selected) return;
 
@@ -224,12 +225,27 @@ if (downloadCsvBtn) {
   });
 }
 
+function normalizeQueryTime(input) {
+  const text = input.trim();
+
+  // 支援：
+  // 2026/03/22 16
+  // 2026/03/22 16:00
+  // 最後都轉成 Arduino 要的 YYYY/MM/DD HH
+  const match = text.match(/^(\d{4}\/\d{2}\/\d{2})\s+(\d{2})(?::\d{2})?$/);
+  if (!match) return null;
+
+  const datePart = match[1];
+  const hourPart = match[2];
+  return `${datePart} ${hourPart}`;
+}
+
 if (queryBtn) {
   queryBtn.addEventListener("click", async () => {
-    const start = startTimeInput.value.trim();
-    const end = endTimeInput.value.trim();
+    const startRaw = startTimeInput.value.trim();
+    const endRaw = endTimeInput.value.trim();
 
-    if (!start || !end) {
+    if (!startRaw || !endRaw) {
       alert("請輸入開始與結束時間");
       return;
     }
@@ -239,16 +255,18 @@ if (queryBtn) {
       return;
     }
 
+    const start = normalizeQueryTime(startRaw);
+    const end = normalizeQueryTime(endRaw);
+
+    if (!start || !end) {
+      alert("請使用格式：YYYY/MM/DD HH:MM，例如 2026/03/22 16:00");
+      return;
+    }
+
     csvBuffer = "";
     shouldShowHistory = true;
     if (historyOutput) historyOutput.textContent = "查詢中...";
-    function normalizeTime(input) {
-  // 把 2026/03/22 16:00 → 2026/03/22 16
-  return input.replace(/:\d{2}$/, "");
-}
-const startNorm = normalizeTime(start);
-const endNorm = normalizeTime(end);
-await sendCommand(`QUERY,${startNorm},${endNorm}`);
+    await sendCommand(`QUERY,${start},${end}`);
   });
 }
 
