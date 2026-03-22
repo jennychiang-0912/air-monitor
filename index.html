@@ -3,25 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Air Monitor</title>
+  <title>即時空氣品質監測系統</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>即時空氣品質監測系統</h1>
-    <p class="subtitle">Arduino + Web Serial 即時監測</p>
+    <header class="page-header">
+      <h1>即時空氣品質監測系統</h1>
+      <p class="subtitle">Arduino + Web Serial 即時監測</p>
+    </header>
 
-    <div class="top-bar">
+    <section class="top-bar">
       <button id="connectBtn">連接 Arduino</button>
       <span id="status">尚未連接</span>
-    </div>
+    </section>
 
-    <div class="card-grid">
+    <section class="card-grid">
       <div class="card">
         <h2>時間</h2>
         <small>目前感測時間</small>
-        <p id="timeValue">--</p>
+        <p id="timeValue" class="time-value">--</p>
       </div>
 
       <div class="card">
@@ -47,32 +49,35 @@
         <small>空氣中氣體污染程度</small>
         <p id="tvocValue" class="value">--</p>
       </div>
-    </div>
+    </section>
 
-    <div class="card">
+    <section class="card raw-card">
       <h2>最近收到的原始資料</h2>
       <pre id="rawData">等待資料中...</pre>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>一氧化碳（CO）每分鐘變化</h2>
-      <canvas id="mq7Chart"></canvas>
-    </div>
+    <section class="card chart-card">
+      <div class="chart-header">
+        <div>
+          <h2 id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
+          <small>每分鐘記錄一個點</small>
+        </div>
 
-    <div class="card">
-      <h2>粉塵濃度每分鐘變化</h2>
-      <canvas id="dustChart"></canvas>
-    </div>
+        <div class="selector-group">
+          <label for="chartSelector">選擇圖表</label>
+          <select id="chartSelector">
+            <option value="mq7">一氧化碳（CO）</option>
+            <option value="dust">粉塵濃度</option>
+            <option value="co2" selected>二氧化碳（CO₂）</option>
+            <option value="tvoc">揮發性有機物（TVOC）</option>
+          </select>
+        </div>
+      </div>
 
-    <div class="card">
-      <h2>二氧化碳（CO₂）每分鐘變化</h2>
-      <canvas id="co2Chart"></canvas>
-    </div>
-
-    <div class="card">
-      <h2>揮發性有機物（TVOC）每分鐘變化</h2>
-      <canvas id="tvocChart"></canvas>
-    </div>
+      <div class="chart-wrap">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </section>
   </div>
 
   <script src="app.js"></script>
