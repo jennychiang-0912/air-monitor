@@ -12,18 +12,19 @@ body {
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .subtitle {
   color: #666;
+  margin-bottom: 16px;
 }
 
 .top-bar {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin: 20px 0;
+  margin-bottom: 20px;
 }
 
 button {
@@ -48,22 +49,27 @@ button {
   box-shadow: 0 4px 10px rgba(0,0,0,0.08);
 }
 
+/* ⭐ 標題 + 小字距離優化 */
 .card h2 {
-  margin-bottom: 4px;
+  margin-bottom: 0px;
 }
 
 .card small {
   display: block;
-  margin-bottom: 8px;
-  color: #666;
+  margin-top: -2px;     /* 關鍵：讓小字往上貼 */
+  margin-bottom: 6px;
+  color: #888;
+  font-size: 12px;
 }
 
+/* ⭐ 數值 */
 .value {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: bold;
+  margin-top: 4px;
 }
 
-/* 顏色分級 */
+/* ⭐ 顏色分級 */
 .good {
   color: #16a34a;
 }
@@ -76,9 +82,12 @@ button {
   color: #dc2626;
 }
 
+/* ⭐ 原始資料區 */
 pre {
   background: #111827;
   color: #f9fafb;
   padding: 12px;
   border-radius: 10px;
+  font-size: 13px;
+  overflow-x: auto;
 }
