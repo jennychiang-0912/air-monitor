@@ -242,7 +242,13 @@ if (queryBtn) {
     csvBuffer = "";
     shouldShowHistory = true;
     if (historyOutput) historyOutput.textContent = "查詢中...";
-    await sendCommand(`QUERY,${start},${end}`);
+    function normalizeTime(input) {
+  // 把 2026/03/22 16:00 → 2026/03/22 16
+  return input.replace(/:\d{2}$/, "");
+}
+const startNorm = normalizeTime(start);
+const endNorm = normalizeTime(end);
+await sendCommand(`QUERY,${startNorm},${endNorm}`);
   });
 }
 
