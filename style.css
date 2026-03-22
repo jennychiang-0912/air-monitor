@@ -130,7 +130,15 @@ button:hover {
   color: #dc2626;
 }
 
+/* 圖表卡片：和下方原始資料區塊拉開距離 */
+.chart-card {
+  padding-bottom: 22px;
+  margin-bottom: 24px;
+}
+
+/* 原始資料卡片：和上方圖表拉開距離 */
 .raw-card {
+  margin-top: 24px;
   margin-bottom: 22px;
 }
 
@@ -145,10 +153,6 @@ pre {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.chart-card {
-  padding-bottom: 22px;
 }
 
 .chart-header {
