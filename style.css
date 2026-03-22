@@ -15,11 +15,7 @@ body {
   padding: 24px 20px 40px;
 }
 
-.page-header {
-  margin-bottom: 20px;
-}
-
-.title-row {
+.header-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -27,14 +23,14 @@ body {
   flex-wrap: wrap;
 }
 
-.page-header h1 {
+.header-row h1 {
   margin: 0 0 6px;
   font-size: 32px;
   font-weight: 800;
   line-height: 1.2;
 }
 
-.header-time {
+.time-display {
   font-size: 28px;
   font-weight: 800;
   color: #111827;
@@ -43,7 +39,7 @@ body {
 }
 
 .subtitle {
-  margin: 4px 0 0;
+  margin: 4px 0 18px;
   color: #6b7280;
   font-size: 18px;
   font-weight: 500;
@@ -92,6 +88,7 @@ button:hover {
   border-radius: 18px;
   padding: 20px 20px 18px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  margin-bottom: 22px;
 }
 
 .card h2 {
@@ -130,18 +127,6 @@ button:hover {
   color: #dc2626;
 }
 
-/* 圖表卡片：和下方原始資料區塊拉開距離 */
-.chart-card {
-  padding-bottom: 22px;
-  margin-bottom: 24px;
-}
-
-/* 原始資料卡片：和上方圖表拉開距離 */
-.raw-card {
-  margin-top: 24px;
-  margin-bottom: 22px;
-}
-
 pre {
   margin: 0;
   background: #0f172a;
@@ -155,26 +140,20 @@ pre {
   word-break: break-word;
 }
 
+.chart-card {
+  padding-bottom: 22px;
+}
+
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
 }
 
-.selector-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 180px;
-}
-
-.selector-group label {
-  font-size: 15px;
-  color: #4b5563;
-  font-weight: 600;
+.chart-header h2 {
+  margin-bottom: 0;
 }
 
 select {
@@ -185,9 +164,10 @@ select {
   font-size: 15px;
 }
 
-.chart-wrap {
+.chart-container {
   width: 100%;
-  height: 380px;
+  height: 360px;
+  margin-top: 16px;
   position: relative;
 }
 
@@ -196,22 +176,36 @@ select {
   height: 100% !important;
 }
 
+.download-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+#downloadStatus {
+  font-size: 15px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 18px 14px 30px;
   }
 
-  .title-row {
+  .header-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
 
-  .page-header h1 {
+  .header-row h1 {
     font-size: 24px;
   }
 
-  .header-time {
+  .time-display {
     font-size: 22px;
     text-align: left;
   }
@@ -236,7 +230,7 @@ select {
     font-size: 28px;
   }
 
-  .chart-wrap {
+  .chart-container {
     height: 300px;
   }
 }
