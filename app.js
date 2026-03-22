@@ -84,6 +84,7 @@ chartSelector.addEventListener("change", () => {
           continue;
         }
 
+        rawData.textContent 
         rawData.textContent = line;
         latestRawLine = line;
 
