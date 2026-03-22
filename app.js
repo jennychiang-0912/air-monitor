@@ -1,6 +1,7 @@
 const connectBtn = document.getElementById("connectBtn");
 const statusText = document.getElementById("status");
 const rawData = document.getElementById("rawData");
+const chartSelector = document.getElementById("chartSelector");
 
 const timeValue = document.getElementById("timeValue");
 const mq7Value = document.getElementById("mq7Value");
@@ -11,27 +12,39 @@ const tvocValue = document.getElementById("tvocValue");
 let port, reader;
 let lastMinute = null;
 
-// ===== 各圖表資料 =====
-const mq7Labels = [];
-const mq7Data = [];
+// ===== 各項資料 =====
+const chartStore = {
+  mq7: {
+    label: "一氧化碳（CO）",
+    labels: [],
+    values: []
+  },
+  dust: {
+    label: "粉塵濃度",
+    labels: [],
+    values: []
+  },
+  co2: {
+    label: "二氧化碳（CO₂）",
+    labels: [],
+    values: []
+  },
+  tvoc: {
+    label: "揮發性有機物（TVOC）",
+    labels: [],
+    values: []
+  }
+};
 
-const dustLabels = [];
-const dustData = [];
-
-const co2Labels = [];
-const co2Data = [];
-
-const tvocLabels = [];
-const tvocData = [];
-
-// ===== 建立圖表 =====
-const mq7Chart = new Chart(document.getElementById("mq7Chart").getContext("2d"), {
+// ===== 建立單一主圖 =====
+const ctx = document.getElementById("mainChart").getContext("2d");
+const mainChart = new Chart(ctx, {
   type: "line",
   data: {
-    labels: mq7Labels,
+    labels: chartStore.co2.labels,
     datasets: [{
-      label: "CO",
-      data: mq7Data,
+      label: chartStore.co2.label,
+      data: chartStore.co2.values,
       tension: 0.2,
       borderWidth: 2,
       pointRadius: 3
@@ -40,66 +53,29 @@ const mq7Chart = new Chart(document.getElementById("mq7Chart").getContext("2d"),
   options: {
     responsive: true,
     animation: false,
-    scales: { y: { beginAtZero: false } }
+    scales: {
+      y: {
+        beginAtZero: false
+      }
+    }
   }
 });
 
-const dustChart = new Chart(document.getElementById("dustChart").getContext("2d"), {
-  type: "line",
-  data: {
-    labels: dustLabels,
-    datasets: [{
-      label: "Dust",
-      data: dustData,
-      tension: 0.2,
-      borderWidth: 2,
-      pointRadius: 3
-    }]
-  },
-  options: {
-    responsive: true,
-    animation: false,
-    scales: { y: { beginAtZero: false } }
-  }
+// ===== 切換圖表 =====
+chartSelector.addEventListener("change", () => {
+  updateDisplayedChart(chartSelector.value);
 });
 
-const co2Chart = new Chart(document.getElementById("co2Chart").getContext("2d"), {
-  type: "line",
-  data: {
-    labels: co2Labels,
-    datasets: [{
-      label: "CO2",
-      data: co2Data,
-      tension: 0.2,
-      borderWidth: 2,
-      pointRadius: 3
-    }]
-  },
-  options: {
-    responsive: true,
-    animation: false,
-    scales: { y: { beginAtZero: false } }
-  }
-});
+function updateDisplayedChart(type) {
+  const selected = chartStore[type];
 
-const tvocChart = new Chart(document.getElementById("tvocChart").getContext("2d"), {
-  type: "line",
-  data: {
-    labels: tvocLabels,
-    datasets: [{
-      label: "TVOC",
-      data: tvocData,
-      tension: 0.2,
-      borderWidth: 2,
-      pointRadius: 3
-    }]
-  },
-  options: {
-    responsive: true,
-    animation: false,
-    scales: { y: { beginAtZero: false } }
-  }
-});
+  mainChart.data.labels = selected.labels;
+  mainChart.data.datasets[0].label = selected.label;
+  mainChart.data.datasets[0].data = selected.values;
+
+  updateChartScale(mainChart, selected.values);
+  mainChart.update();
+}
 
 // ===== 連接 Arduino =====
 connectBtn.onclick = async () => {
@@ -178,50 +154,58 @@ function parse(line) {
     updateValue(tvocValue, Number(data.TVOC), 200, 400);
   }
 
-  // ===== 每分鐘只加一個點 =====
+  // ===== 每分鐘只記錄一個點 =====
   if (data.TIME) {
-    const timeParts = data.TIME.split(" ");
-    const minuteLabel = timeParts.length > 1 ? timeParts[1].slice(0, 5) : null;
+    let minuteLabel = null;
+    const match = data.TIME.match(/(\d{2}:\d{2}):\d{2}/);
+    if (match) {
+      minuteLabel = match[1]; // HH:MM
+    }
 
     if (minuteLabel && minuteLabel !== lastMinute) {
       lastMinute = minuteLabel;
 
       if (data.MQ7) {
-        pushChartPoint(mq7Labels, mq7Data, minuteLabel, Number(data.MQ7), mq7Chart);
+        pushPoint("mq7", minuteLabel, Number(data.MQ7));
       }
 
       if (data.Dust) {
-        pushChartPoint(dustLabels, dustData, minuteLabel, Number(data.Dust), dustChart);
+        pushPoint("dust", minuteLabel, Number(data.Dust));
       }
 
       if (data.CO2) {
-        pushChartPoint(co2Labels, co2Data, minuteLabel, Number(data.CO2), co2Chart);
+        pushPoint("co2", minuteLabel, Number(data.CO2));
       }
 
       if (data.TVOC) {
-        pushChartPoint(tvocLabels, tvocData, minuteLabel, Number(data.TVOC), tvocChart);
+        pushPoint("tvoc", minuteLabel, Number(data.TVOC));
       }
+
+      // 更新目前顯示中的圖
+      updateDisplayedChart(chartSelector.value);
     }
   }
 }
 
-// ===== 推入圖表點 =====
-function pushChartPoint(labels, values, label, value, chart) {
-  labels.push(label);
-  values.push(value);
+// ===== 儲存圖表點 =====
+function pushPoint(type, label, value) {
+  const target = chartStore[type];
+  target.labels.push(label);
+  target.values.push(value);
 
-  if (labels.length > 20) {
-    labels.shift();
-    values.shift();
+  if (target.labels.length > 20) {
+    target.labels.shift();
+    target.values.shift();
   }
-
-  updateChartScale(chart, values);
-  chart.update();
 }
 
-// ===== 自動調整圖表刻度 =====
+// ===== 自動調整刻度 =====
 function updateChartScale(chart, values) {
-  if (values.length === 0) return;
+  if (!values || values.length === 0) {
+    chart.options.scales.y.min = 0;
+    chart.options.scales.y.max = 100;
+    return;
+  }
 
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
