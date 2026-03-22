@@ -10,7 +10,7 @@
 <body>
   <div class="container">
     <h1>即時空氣品質監測系統</h1>
-    <p class="subtitle">Arduino + GitHub Pages + Web Serial</p>
+    <p class="subtitle">Arduino + Web Serial 即時監測</p>
 
     <div class="top-bar">
       <button id="connectBtn">連接 Arduino</button>
@@ -18,35 +18,37 @@
     </div>
 
     <div class="card-grid">
+
       <div class="card">
         <h2>時間</h2>
-        <p id="timeValue">--</p>
         <small>目前感測時間</small>
+        <p id="timeValue">--</p>
       </div>
 
       <div class="card">
         <h2>一氧化碳（CO）</h2>
-        <p id="mq7Value">--</p>
         <small>由 MQ-7 感測器測得</small>
+        <p id="mq7Value" class="value">--</p>
       </div>
 
       <div class="card">
         <h2>粉塵濃度</h2>
-        <p id="dustValue">--</p>
-        <small>反映空氣中懸浮粒子變化</small>
+        <small>空氣中懸浮粒子變化</small>
+        <p id="dustValue" class="value">--</p>
       </div>
 
       <div class="card">
         <h2>二氧化碳（CO₂）</h2>
-        <p id="co2Value">--</p>
         <small>由 CCS811 感測器測得</small>
+        <p id="co2Value" class="value">--</p>
       </div>
 
       <div class="card">
-        <h2>總揮發性有機物（TVOC）</h2>
-        <p id="tvocValue">--</p>
-        <small>反映空氣中的揮發性氣體</small>
+        <h2>揮發性有機物（TVOC）</h2>
+        <small>空氣中氣體污染程度</small>
+        <p id="tvocValue" class="value">--</p>
       </div>
+
     </div>
 
     <div class="card">
@@ -55,9 +57,10 @@
     </div>
 
     <div class="card">
-      <h2>二氧化碳（CO₂）每分鐘變化圖</h2>
+      <h2>CO₂ 每分鐘變化</h2>
       <canvas id="co2Chart"></canvas>
     </div>
+
   </div>
 
   <script src="app.js"></script>
