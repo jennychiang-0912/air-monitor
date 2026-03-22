@@ -190,6 +190,26 @@ select {
   font-weight: 600;
 }
 
+.query-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.query-row input {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 18px 14px 30px;
