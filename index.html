@@ -18,7 +18,6 @@
     </div>
 
     <div class="card-grid">
-
       <div class="card">
         <h2>時間</h2>
         <small>目前感測時間</small>
@@ -48,7 +47,6 @@
         <small>空氣中氣體污染程度</small>
         <p id="tvocValue" class="value">--</p>
       </div>
-
     </div>
 
     <div class="card">
@@ -57,10 +55,24 @@
     </div>
 
     <div class="card">
-      <h2>CO₂ 每分鐘變化</h2>
+      <h2>一氧化碳（CO）每分鐘變化</h2>
+      <canvas id="mq7Chart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>粉塵濃度每分鐘變化</h2>
+      <canvas id="dustChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>二氧化碳（CO₂）每分鐘變化</h2>
       <canvas id="co2Chart"></canvas>
     </div>
 
+    <div class="card">
+      <h2>揮發性有機物（TVOC）每分鐘變化</h2>
+      <canvas id="tvocChart"></canvas>
+    </div>
   </div>
 
   <script src="app.js"></script>
