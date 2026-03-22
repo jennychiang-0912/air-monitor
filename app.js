@@ -10,6 +10,7 @@ const tvocValue = document.getElementById("tvocValue");
 
 let port = null;
 let reader = null;
+let lastChartMinute = null;
 
 const co2Labels = [];
 const co2Data = [];
@@ -113,36 +114,46 @@ function parseData(line) {
     }
   }
 
-  if (parsed["TIME"]) {
+  if (parsed["TIME"] !== undefined) {
     timeValue.textContent = parsed["TIME"];
   }
 
-  if (parsed["MQ7"]) {
+  if (parsed["MQ7"] !== undefined) {
     mq7Value.textContent = parsed["MQ7"];
   }
 
-  if (parsed["Dust"]) {
+  if (parsed["Dust"] !== undefined) {
     dustValue.textContent = parsed["Dust"];
   }
 
-  if (parsed["CO2"]) {
+  if (parsed["CO2"] !== undefined) {
     const co2 = Number(parsed["CO2"]);
     co2Value.textContent = co2;
 
-    const label = parsed["TIME"] ? parsed["TIME"].split(" ")[1] : new Date().toLocaleTimeString();
-    co2Labels.push(label);
-    co2Data.push(co2);
+    if (parsed["TIME"]) {
+      const timeText = parsed["TIME"].trim();        // 例如 2026/03/22 10:48:58
+      const timeParts = timeText.split(" ");
+      const hhmmss = timeParts.length > 1 ? timeParts[1] : "";
+      const hm = hhmmss.slice(0, 5);                 // 例如 10:48
 
-    if (co2Labels.length > 20) {
-      co2Labels.shift();
-      co2Data.shift();
+      if (hm && hm !== lastChartMinute) {
+        lastChartMinute = hm;
+
+        co2Labels.push(hm);
+        co2Data.push(co2);
+
+        if (co2Labels.length > 20) {
+          co2Labels.shift();
+          co2Data.shift();
+        }
+
+        updateChartScale();
+        co2Chart.update();
+      }
     }
-
-    updateChartScale();
-    co2Chart.update();
   }
 
-  if (parsed["TVOC"]) {
+  if (parsed["TVOC"] !== undefined) {
     tvocValue.textContent = parsed["TVOC"];
   }
 }
@@ -153,7 +164,7 @@ function updateChartScale() {
   const minVal = Math.min(...co2Data);
   const maxVal = Math.max(...co2Data);
 
-  let padding = Math.max(5, Math.ceil((maxVal - minVal) * 0.2));
+  let padding = Math.max(3, Math.ceil((maxVal - minVal) * 0.3));
 
   if (minVal === maxVal) {
     padding = 10;
