@@ -1,101 +1,44 @@
-const connectBtn = document.getElementById("connectBtn");
-const statusText = document.getElementById("status");
-const output = document.getElementById("output");
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>歷史資料查詢</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 
-const queryBtn = document.getElementById("queryBtn");
-const exportBtn = document.getElementById("exportBtn");
-const clearBtn = document.getElementById("clearBtn");
+<body>
+<div class="container">
 
-let port;
-let reader;
+  <h1>歷史資料查詢</h1>
 
-connectBtn.onclick = async () => {
-  port = await navigator.serial.requestPort();
-  await port.open({ baudRate: 9600 });
+  <div class="top-bar">
+    <button id="connectBtn">連接 Arduino</button>
+    <span id="status">尚未連接</span>
+  </div>
 
-  statusText.textContent = "已連接 Arduino";
+  <div class="card">
+    <h2>查詢條件</h2>
+    <small>格式：YYYY/MM/DD HH</small>
 
-  readSerial();
-};
+    <div class="query-row">
+      <input id="startTime" placeholder="開始：2026/03/22 10">
+      <input id="endTime" placeholder="結束：2026/03/22 14">
+    </div>
 
-async function sendCommand(cmd) {
-  const encoder = new TextEncoder();
-  const writer = port.writable.getWriter();
-  await writer.write(encoder.encode(cmd + "\n"));
-  writer.releaseLock();
-}
+    <div class="btn-row">
+      <button id="queryBtn">查詢</button>
+      <button id="exportBtn">下載 CSV</button>
+      <button id="clearBtn">清除資料</button>
+    </div>
+  </div>
 
-let csvBuffer = "";
-let isCSV = false;
+  <div class="card">
+    <h2>查詢結果</h2>
+    <pre id="output">尚未查詢</pre>
+  </div>
 
-async function readSerial() {
-  const decoder = new TextDecoderStream();
-  port.readable.pipeTo(decoder.writable);
-  reader = decoder.readable.getReader();
+</div>
 
-  while (true) {
-    const { value } = await reader.read();
-
-    const lines = value.split("\n");
-
-    for (let line of lines) {
-      line = line.trim();
-      if (!line) continue;
-
-      if (line === "CSV_BEGIN") {
-        isCSV = true;
-        csvBuffer = "";
-        continue;
-      }
-
-      if (line === "CSV_END") {
-        isCSV = false;
-
-        output.textContent = csvBuffer;
-        downloadCSV(csvBuffer);
-        continue;
-      }
-
-      if (isCSV) {
-        csvBuffer += line + "\n";
-      }
-    }
-  }
-}
-
-queryBtn.onclick = async () => {
-  const start = document.getElementById("startTime").value;
-  const end = document.getElementById("endTime").value;
-
-  if (!start || !end) {
-    alert("請輸入時間");
-    return;
-  }
-
-  output.textContent = "查詢中...";
-  await sendCommand(`QUERY,${start},${end}`);
-};
-
-exportBtn.onclick = async () => {
-  output.textContent = "匯出中...";
-  await sendCommand("EXPORT");
-};
-
-clearBtn.onclick = async () => {
-  if (!confirm("確定清除資料？")) return;
-
-  await sendCommand("CLEAR");
-  output.textContent = "已清除";
-};
-
-function downloadCSV(text) {
-  const blob = new Blob([text], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "air_data.csv";
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
+<script src="history.js"></script>
+</body>
+</html>
