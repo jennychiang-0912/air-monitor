@@ -1,10 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Air Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h1>Hello Air Monitor</h1>
+  <div class="container">
+    <h1>即時空氣品質監測系統</h1>
+    <p class="subtitle">Arduino + GitHub Pages + Web Serial</p>
+
+    <div class="top-bar">
+      <button id="connectBtn">連接 Arduino</button>
+      <span id="status">尚未連接</span>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h2>MQ-7</h2>
+        <p id="mq7Value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>Dust</h2>
+        <p id="dustValue">--</p>
+      </div>
+
+      <div class="card">
+        <h2>CO2</h2>
+        <p id="co2Value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>TVOC</h2>
+        <p id="tvocValue">--</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>最近收到的原始資料</h2>
+      <pre id="rawData">等待資料中...</pre>
+    </div>
+
+    <div class="card">
+      <h2>CO2 即時圖表</h2>
+      <canvas id="co2Chart"></canvas>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
