@@ -13,6 +13,7 @@ const tvocValue = document.getElementById("tvocValue");
 let port = null;
 let reader = null;
 let lastMinute = null;
+let isCSVMode = false;
 
 const chartStore = {
   mq7: {
@@ -87,7 +88,6 @@ if (chartSelector) {
 
 function updateDisplayedChart(type) {
   if (!mainChart) return;
-
   const selected = chartStore[type];
   if (!selected) return;
 
@@ -103,53 +103,71 @@ function updateDisplayedChart(type) {
   mainChart.update();
 }
 
-if (connectBtn) {
-  connectBtn.onclick = async () => {
-    try {
-      if (!("serial" in navigator)) {
-        if (statusText) statusText.textContent = "此瀏覽器不支援 Web Serial";
-        if (rawData) rawData.textContent = "請改用 Chrome 或 Edge";
-        return;
-      }
+async function connectArduino() {
+  try {
+    if (!("serial" in navigator)) {
+      if (statusText) statusText.textContent = "此瀏覽器不支援 Web Serial";
+      if (rawData) rawData.textContent = "請改用 Chrome 或 Edge";
+      return;
+    }
 
-      port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 9600 });
+    if (statusText) statusText.textContent = "請選擇 Arduino...";
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600 });
 
-      if (statusText) statusText.textContent = "已連接 Arduino";
+    if (statusText) statusText.textContent = "已連接 Arduino";
 
-      const decoder = new TextDecoderStream();
-      port.readable.pipeTo(decoder.writable);
-      reader = decoder.readable.getReader();
+    const decoder = new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable);
+    reader = decoder.readable.getReader();
 
-      let buffer = "";
+    let buffer = "";
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-        buffer += value;
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
+      buffer += value;
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
 
-        for (let line of lines) {
-          line = line.trim();
-          if (!line) continue;
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
 
-          if (rawData) rawData.textContent = line;
+        // 忽略歷史查詢/匯出 CSV 區塊
+        if (line === "CSV_BEGIN") {
+          isCSVMode = true;
+          continue;
+        }
 
-          try {
-            parse(line);
-          } catch (err) {
-            console.error("parse error:", err);
-          }
+        if (line === "CSV_END") {
+          isCSVMode = false;
+          continue;
+        }
+
+        if (isCSVMode) {
+          continue;
+        }
+
+        if (rawData) rawData.textContent = line;
+
+        try {
+          parse(line);
+        } catch (err) {
+          console.error("parse error:", err);
         }
       }
-    } catch (error) {
-      if (statusText) statusText.textContent = "連接失敗";
-      if (rawData) rawData.textContent = `錯誤：${error.name} - ${error.message}`;
-      console.error(error);
     }
-  };
+  } catch (error) {
+    if (statusText) statusText.textContent = "連接失敗";
+    if (rawData) rawData.textContent = `錯誤：${error.name} - ${error.message}`;
+    console.error(error);
+  }
+}
+
+if (connectBtn) {
+  connectBtn.addEventListener("click", connectArduino);
 }
 
 function parse(line) {
@@ -164,6 +182,9 @@ function parse(line) {
       data[key] = value;
     }
   });
+
+  // 只處理即時資料
+  if (data.LIVE !== "1") return;
 
   if (data.TIME && timeValue) {
     timeValue.textContent = data.TIME;
@@ -192,21 +213,10 @@ function parse(line) {
     if (minuteLabel && minuteLabel !== lastMinute) {
       lastMinute = minuteLabel;
 
-      if (data.MQ7) {
-        pushPoint("mq7", minuteLabel, Number(data.MQ7));
-      }
-
-      if (data.Dust) {
-        pushPoint("dust", minuteLabel, Number(data.Dust));
-      }
-
-      if (data.CO2) {
-        pushPoint("co2", minuteLabel, Number(data.CO2));
-      }
-
-      if (data.TVOC) {
-        pushPoint("tvoc", minuteLabel, Number(data.TVOC));
-      }
+      if (data.MQ7) pushPoint("mq7", minuteLabel, Number(data.MQ7));
+      if (data.Dust) pushPoint("dust", minuteLabel, Number(data.Dust));
+      if (data.CO2) pushPoint("co2", minuteLabel, Number(data.CO2));
+      if (data.TVOC) pushPoint("tvoc", minuteLabel, Number(data.TVOC));
 
       if (chartSelector) {
         updateDisplayedChart(chartSelector.value);
@@ -266,3 +276,4 @@ function updateValue(element, value, warn, danger) {
 
 // 預設顯示 CO₂ 圖
 updateDisplayedChart("co2");
+console.log("app.js loaded");
