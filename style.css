@@ -1,75 +1,107 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #f4f7fb;
-  color: #222;
+  background: #f3f6fb;
+  color: #1f2937;
 }
 
 .container {
-  max-width: 1000px;
-  margin: auto;
-  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
 }
 
-h1 {
-  margin-bottom: 6px;
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0 0 6px;
+  font-size: 32px;
 }
 
 .subtitle {
-  color: #666;
-  margin-bottom: 16px;
+  margin: 0;
+  color: #6b7280;
+  font-size: 16px;
 }
 
 .top-bar {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 button {
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
   border: none;
   background: #2563eb;
   color: white;
   cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+#status {
+  font-weight: 700;
+  color: #111827;
 }
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
 }
 
 .card {
-  background: white;
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-/* ⭐ 標題 + 小字距離優化 */
 .card h2 {
-  margin-bottom: 0px;
+  margin: 0 0 2px;
+  font-size: 20px;
+  line-height: 1.3;
 }
 
 .card small {
   display: block;
-  margin-top: -2px;     /* 關鍵：讓小字往上貼 */
-  margin-bottom: 6px;
-  color: #888;
-  font-size: 12px;
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-/* ⭐ 數值 */
 .value {
+  margin: 0;
   font-size: 30px;
-  font-weight: bold;
-  margin-top: 4px;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
-/* ⭐ 顏色分級 */
+.time-value {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .good {
   color: #16a34a;
 }
@@ -82,12 +114,90 @@ button {
   color: #dc2626;
 }
 
-/* ⭐ 原始資料區 */
+.raw-card {
+  margin-bottom: 22px;
+}
+
 pre {
-  background: #111827;
-  color: #f9fafb;
-  padding: 12px;
-  border-radius: 10px;
-  font-size: 13px;
+  margin: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
   overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chart-card {
+  padding-bottom: 22px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.selector-group label {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 14px;
+}
+
+.chart-wrap {
+  width: 100%;
+  height: 380px;
+  position: relative;
+}
+
+#mainChart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 18px 14px 30px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .value {
+    font-size: 28px;
+  }
+
+  .time-value {
+    font-size: 22px;
+  }
+
+  .chart-wrap {
+    height: 300px;
+  }
 }
