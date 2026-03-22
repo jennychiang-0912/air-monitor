@@ -41,47 +41,61 @@ const chartStore = {
   }
 };
 
-const ctx = document.getElementById("mainChart").getContext("2d");
-const mainChart = new Chart(ctx, {
-  type: "line",
-  data: {
-    labels: chartStore.co2.labels,
-    datasets: [
-      {
-        label: chartStore.co2.label,
-        data: chartStore.co2.values,
-        tension: 0.25,
-        borderWidth: 2,
-        pointRadius: 3,
-        fill: false
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false,
-    plugins: {
-      legend: {
-        display: true
-      }
+// 建立圖表前先確認 canvas 存在
+const mainChartCanvas = document.getElementById("mainChart");
+let mainChart = null;
+
+if (mainChartCanvas) {
+  const ctx = mainChartCanvas.getContext("2d");
+  mainChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: chartStore.co2.labels,
+      datasets: [
+        {
+          label: chartStore.co2.label,
+          data: chartStore.co2.values,
+          tension: 0.25,
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false
+        }
+      ]
     },
-    scales: {
-      y: {
-        beginAtZero: false
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          display: true
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false
+        }
       }
     }
-  }
-});
+  });
+}
 
-chartSelector.addEventListener("change", () => {
-  updateDisplayedChart(chartSelector.value);
-});
+if (chartSelector) {
+  chartSelector.addEventListener("change", () => {
+    updateDisplayedChart(chartSelector.value);
+  });
+}
 
 function updateDisplayedChart(type) {
-  const selected = chartStore[type];
+  if (!mainChart) return;
 
-  chartTitle.textContent = selected.title;
+  const selected = chartStore[type];
+  if (!selected) return;
+
+  if (chartTitle) {
+    chartTitle.textContent = selected.title;
+  }
+
   mainChart.data.labels = selected.labels;
   mainChart.data.datasets[0].label = selected.label;
   mainChart.data.datasets[0].data = selected.values;
@@ -90,47 +104,54 @@ function updateDisplayedChart(type) {
   mainChart.update();
 }
 
-connectBtn.onclick = async () => {
-  try {
-    if (!("serial" in navigator)) {
-      statusText.textContent = "此瀏覽器不支援 Web Serial";
-      rawData.textContent = "請改用 Chrome 或 Edge";
-      return;
-    }
-
-    port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 9600 });
-
-    statusText.textContent = "已連接 Arduino";
-
-    const decoder = new TextDecoderStream();
-    port.readable.pipeTo(decoder.writable);
-    reader = decoder.readable.getReader();
-
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += value;
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-
-      for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
-
-        rawData.textContent = line;
-        parse(line);
+if (connectBtn) {
+  connectBtn.onclick = async () => {
+    try {
+      if (!("serial" in navigator)) {
+        if (statusText) statusText.textContent = "此瀏覽器不支援 Web Serial";
+        if (rawData) rawData.textContent = "請改用 Chrome 或 Edge";
+        return;
       }
+
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 9600 });
+
+      if (statusText) statusText.textContent = "已連接 Arduino";
+
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable);
+      reader = decoder.readable.getReader();
+
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += value;
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (let line of lines) {
+          line = line.trim();
+          if (!line) continue;
+
+          if (rawData) rawData.textContent = line;
+
+          try {
+            parse(line);
+          } catch (err) {
+            console.error("parse error:", err);
+          }
+        }
+      }
+    } catch (error) {
+      if (statusText) statusText.textContent = "連接失敗";
+      if (rawData) rawData.textContent = `錯誤：${error.name} - ${error.message}`;
+      console.error(error);
     }
-  } catch (error) {
-    statusText.textContent = "連接失敗";
-    rawData.textContent = `錯誤：${error.name} - ${error.message}`;
-    console.error(error);
-  }
-};
+  };
+}
 
 function parse(line) {
   const parts = line.split("|").map(x => x.trim());
@@ -145,23 +166,23 @@ function parse(line) {
     }
   });
 
-  if (data.TIME) {
+  if (data.TIME && timeValue) {
     timeValue.textContent = data.TIME;
   }
 
-  if (data.MQ7) {
+  if (data.MQ7 && mq7Value) {
     updateValue(mq7Value, Number(data.MQ7), 200, 400);
   }
 
-  if (data.Dust) {
+  if (data.Dust && dustValue) {
     updateValue(dustValue, Number(data.Dust), 300, 600);
   }
 
-  if (data.CO2) {
+  if (data.CO2 && co2Value) {
     updateValue(co2Value, Number(data.CO2), 800, 1200);
   }
 
-  if (data.TVOC) {
+  if (data.TVOC && tvocValue) {
     updateValue(tvocValue, Number(data.TVOC), 200, 400);
   }
 
@@ -188,13 +209,17 @@ function parse(line) {
         pushPoint("tvoc", minuteLabel, Number(data.TVOC));
       }
 
-      updateDisplayedChart(chartSelector.value);
+      if (chartSelector) {
+        updateDisplayedChart(chartSelector.value);
+      }
     }
   }
 }
 
 function pushPoint(type, label, value) {
   const target = chartStore[type];
+  if (!target) return;
+
   target.labels.push(label);
   target.values.push(value);
 
@@ -205,6 +230,8 @@ function pushPoint(type, label, value) {
 }
 
 function updateChartScale(chart, values) {
+  if (!chart) return;
+
   if (!values || values.length === 0) {
     chart.options.scales.y.min = 0;
     chart.options.scales.y.max = 100;
@@ -224,6 +251,8 @@ function updateChartScale(chart, values) {
 }
 
 function updateValue(element, value, warn, danger) {
+  if (!element) return;
+
   element.textContent = value;
   element.classList.remove("good", "normal", "bad");
 
@@ -235,3 +264,6 @@ function updateValue(element, value, warn, danger) {
     element.classList.add("bad");
   }
 }
+
+// 預設顯示 CO2 圖
+updateDisplayedChart("co2");
