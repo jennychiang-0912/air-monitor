@@ -8,70 +8,119 @@ const dustValue = document.getElementById("dustValue");
 const co2Value = document.getElementById("co2Value");
 const tvocValue = document.getElementById("tvocValue");
 
-let port = null;
-let reader = null;
-let lastChartMinute = null;
+let port, reader;
+let lastMinute = null;
+
+// ===== 各圖表資料 =====
+const mq7Labels = [];
+const mq7Data = [];
+
+const dustLabels = [];
+const dustData = [];
 
 const co2Labels = [];
 const co2Data = [];
 
-const ctx = document.getElementById("co2Chart").getContext("2d");
-const co2Chart = new Chart(ctx, {
+const tvocLabels = [];
+const tvocData = [];
+
+// ===== 建立圖表 =====
+const mq7Chart = new Chart(document.getElementById("mq7Chart").getContext("2d"), {
   type: "line",
   data: {
-    labels: co2Labels,
-    datasets: [
-      {
-        label: "CO2",
-        data: co2Data,
-        tension: 0.2,
-        borderWidth: 2,
-        pointRadius: 3
-      }
-    ]
+    labels: mq7Labels,
+    datasets: [{
+      label: "CO",
+      data: mq7Data,
+      tension: 0.2,
+      borderWidth: 2,
+      pointRadius: 3
+    }]
   },
   options: {
     responsive: true,
     animation: false,
-    scales: {
-      y: {
-        beginAtZero: false
-      }
-    }
+    scales: { y: { beginAtZero: false } }
   }
 });
 
-connectBtn.addEventListener("click", async () => {
+const dustChart = new Chart(document.getElementById("dustChart").getContext("2d"), {
+  type: "line",
+  data: {
+    labels: dustLabels,
+    datasets: [{
+      label: "Dust",
+      data: dustData,
+      tension: 0.2,
+      borderWidth: 2,
+      pointRadius: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    scales: { y: { beginAtZero: false } }
+  }
+});
+
+const co2Chart = new Chart(document.getElementById("co2Chart").getContext("2d"), {
+  type: "line",
+  data: {
+    labels: co2Labels,
+    datasets: [{
+      label: "CO2",
+      data: co2Data,
+      tension: 0.2,
+      borderWidth: 2,
+      pointRadius: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    scales: { y: { beginAtZero: false } }
+  }
+});
+
+const tvocChart = new Chart(document.getElementById("tvocChart").getContext("2d"), {
+  type: "line",
+  data: {
+    labels: tvocLabels,
+    datasets: [{
+      label: "TVOC",
+      data: tvocData,
+      tension: 0.2,
+      borderWidth: 2,
+      pointRadius: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    animation: false,
+    scales: { y: { beginAtZero: false } }
+  }
+});
+
+// ===== 連接 Arduino =====
+connectBtn.onclick = async () => {
   try {
     if (!("serial" in navigator)) {
       statusText.textContent = "此瀏覽器不支援 Web Serial";
-      rawData.textContent = "請改用 Chrome 或 Edge 開啟網站";
+      rawData.textContent = "請改用 Chrome 或 Edge";
       return;
     }
 
-    statusText.textContent = "請選擇 Arduino 連接埠...";
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
 
     statusText.textContent = "已連接 Arduino";
-    rawData.textContent = "連接成功，等待資料中...";
 
-    await readSerial();
-  } catch (error) {
-    statusText.textContent = "連接失敗";
-    rawData.textContent = `錯誤：${error.name} - ${error.message}`;
-    console.error(error);
-  }
-});
+    const decoder = new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable);
+    reader = decoder.readable.getReader();
 
-async function readSerial() {
-  const decoder = new TextDecoderStream();
-  port.readable.pipeTo(decoder.writable);
-  reader = decoder.readable.getReader();
+    let buffer = "";
 
-  let buffer = "";
-
-  try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -80,89 +129,102 @@ async function readSerial() {
       const lines = buffer.split("\n");
       buffer = lines.pop();
 
-      for (const line of lines) {
-        const cleanLine = line.trim();
-        if (!cleanLine) continue;
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
 
-        rawData.textContent = cleanLine;
-
-        if (cleanLine.includes("TIME=") && cleanLine.includes("MQ7=")) {
-          parseData(cleanLine);
-        }
+        rawData.textContent = line;
+        parse(line);
       }
     }
   } catch (error) {
-    rawData.textContent = `讀取錯誤：${error.name} - ${error.message}`;
+    statusText.textContent = "連接失敗";
+    rawData.textContent = `錯誤：${error.name} - ${error.message}`;
     console.error(error);
-  } finally {
-    if (reader) {
-      reader.releaseLock();
+  }
+};
+
+// ===== 解析資料 =====
+function parse(line) {
+  const parts = line.split("|").map(x => x.trim());
+  let data = {};
+
+  parts.forEach(p => {
+    const eqIndex = p.indexOf("=");
+    if (eqIndex !== -1) {
+      const key = p.substring(0, eqIndex).trim();
+      const value = p.substring(eqIndex + 1).trim();
+      data[key] = value;
     }
-  }
-}
+  });
 
-function parseData(line) {
-  const parts = line.split("|").map(item => item.trim());
-  let parsed = {};
-
-  for (const part of parts) {
-    const eqIndex = part.indexOf("=");
-    if (eqIndex > -1) {
-      const key = part.substring(0, eqIndex).trim();
-      const value = part.substring(eqIndex + 1).trim();
-      parsed[key] = value;
-    }
+  if (data.TIME) {
+    timeValue.textContent = data.TIME;
   }
 
-  if (parsed["TIME"] !== undefined) {
-    timeValue.textContent = parsed["TIME"];
+  if (data.MQ7) {
+    updateValue(mq7Value, Number(data.MQ7), 200, 400);
   }
 
-  if (parsed["MQ7"] !== undefined) {
-    mq7Value.textContent = parsed["MQ7"];
+  if (data.Dust) {
+    updateValue(dustValue, Number(data.Dust), 300, 600);
   }
 
-  if (parsed["Dust"] !== undefined) {
-    dustValue.textContent = parsed["Dust"];
+  if (data.CO2) {
+    updateValue(co2Value, Number(data.CO2), 800, 1200);
   }
 
-  if (parsed["CO2"] !== undefined) {
-    const co2 = Number(parsed["CO2"]);
-    co2Value.textContent = co2;
+  if (data.TVOC) {
+    updateValue(tvocValue, Number(data.TVOC), 200, 400);
+  }
 
-    if (parsed["TIME"]) {
-      const timeText = parsed["TIME"].trim();        // 例如 2026/03/22 10:48:58
-      const timeParts = timeText.split(" ");
-      const hhmmss = timeParts.length > 1 ? timeParts[1] : "";
-      const hm = hhmmss.slice(0, 5);                 // 例如 10:48
+  // ===== 每分鐘只加一個點 =====
+  if (data.TIME) {
+    const timeParts = data.TIME.split(" ");
+    const minuteLabel = timeParts.length > 1 ? timeParts[1].slice(0, 5) : null;
 
-      if (hm && hm !== lastChartMinute) {
-        lastChartMinute = hm;
+    if (minuteLabel && minuteLabel !== lastMinute) {
+      lastMinute = minuteLabel;
 
-        co2Labels.push(hm);
-        co2Data.push(co2);
+      if (data.MQ7) {
+        pushChartPoint(mq7Labels, mq7Data, minuteLabel, Number(data.MQ7), mq7Chart);
+      }
 
-        if (co2Labels.length > 20) {
-          co2Labels.shift();
-          co2Data.shift();
-        }
+      if (data.Dust) {
+        pushChartPoint(dustLabels, dustData, minuteLabel, Number(data.Dust), dustChart);
+      }
 
-        updateChartScale();
-        co2Chart.update();
+      if (data.CO2) {
+        pushChartPoint(co2Labels, co2Data, minuteLabel, Number(data.CO2), co2Chart);
+      }
+
+      if (data.TVOC) {
+        pushChartPoint(tvocLabels, tvocData, minuteLabel, Number(data.TVOC), tvocChart);
       }
     }
   }
-
-  if (parsed["TVOC"] !== undefined) {
-    tvocValue.textContent = parsed["TVOC"];
-  }
 }
 
-function updateChartScale() {
-  if (co2Data.length === 0) return;
+// ===== 推入圖表點 =====
+function pushChartPoint(labels, values, label, value, chart) {
+  labels.push(label);
+  values.push(value);
 
-  const minVal = Math.min(...co2Data);
-  const maxVal = Math.max(...co2Data);
+  if (labels.length > 20) {
+    labels.shift();
+    values.shift();
+  }
+
+  updateChartScale(chart, values);
+  chart.update();
+}
+
+// ===== 自動調整圖表刻度 =====
+function updateChartScale(chart, values) {
+  if (values.length === 0) return;
+
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
 
   let padding = Math.max(3, Math.ceil((maxVal - minVal) * 0.3));
 
@@ -170,6 +232,20 @@ function updateChartScale() {
     padding = 10;
   }
 
-  co2Chart.options.scales.y.min = minVal - padding;
-  co2Chart.options.scales.y.max = maxVal + padding;
+  chart.options.scales.y.min = minVal - padding;
+  chart.options.scales.y.max = maxVal + padding;
+}
+
+// ===== 更新數值顏色 =====
+function updateValue(element, value, warn, danger) {
+  element.textContent = value;
+  element.classList.remove("good", "normal", "bad");
+
+  if (value < warn) {
+    element.classList.add("good");
+  } else if (value < danger) {
+    element.classList.add("normal");
+  } else {
+    element.classList.add("bad");
+  }
 }
