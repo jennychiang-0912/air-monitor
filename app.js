@@ -1,7 +1,8 @@
 function parseTimeToTimestamp(timeStr) {
   if (!timeStr) return NaN;
 
-  const m = timeStr.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
+  const clean = String(timeStr).trim();
+  const m = clean.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
   if (!m) return NaN;
 
   const [, y, mo, d, h, mi] = m;
@@ -16,6 +17,12 @@ function parseTimeToTimestamp(timeStr) {
   ).getTime();
 }
 
+function toNumberOrNull(value) {
+  if (value == null) return null;
+  const n = Number(String(value).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
 function initChart(csv) {
   clearAllChartData();
 
@@ -26,6 +33,7 @@ function initChart(csv) {
   }
 
   let rows = csv
+    .replace(/\r/g, "")          // 修正 Windows / Arduino 換行
     .trim()
     .split("\n")
     .map((r) => r.trim())
@@ -37,49 +45,53 @@ function initChart(csv) {
     return;
   }
 
+  // 去掉表頭
   rows = rows.slice(1);
 
-  // ⭐ 這裡是關鍵：轉成物件 + timestamp
   const parsed = rows
     .map((r) => {
-      const cols = r.split(",");
+      const cols = r.split(",").map((c) => c.trim());
       if (cols.length < 5) return null;
 
       const [time, mq7, dust, co2, tvoc] = cols;
+      const ts = parseTimeToTimestamp(time);
+
+      if (isNaN(ts)) return null;
 
       return {
         time,
-        mq7,
-        dust,
-        co2,
-        tvoc,
-        ts: parseTimeToTimestamp(time)
+        mq7: toNumberOrNull(mq7),
+        dust: toNumberOrNull(dust),
+        co2: toNumberOrNull(co2),
+        tvoc: toNumberOrNull(tvoc),
+        ts
       };
     })
-    .filter((x) => x && !isNaN(x.ts));
+    .filter(Boolean);
 
-  // ⭐ 真正照時間排序（舊 → 新）
+  // 依照真正時間排序：舊 -> 新
   parsed.sort((a, b) => a.ts - b.ts);
 
-  // ⭐ 只取最後 20 筆（最新在右邊）
+  // 只取最後 MAX_POINTS 筆
   const lastRows = parsed.slice(-MAX_POINTS);
 
   lastRows.forEach((row) => {
-    const label = extractMinuteLabel(row.time);
+    const label = extractMinuteLabel(row.time) || "";
 
     chartStore.mq7.labels.push(label);
-    chartStore.mq7.values.push(toNumberOrNull(row.mq7));
+    chartStore.mq7.values.push(row.mq7);
 
     chartStore.dust.labels.push(label);
-    chartStore.dust.values.push(toNumberOrNull(row.dust));
+    chartStore.dust.values.push(row.dust);
 
     chartStore.co2.labels.push(label);
-    chartStore.co2.values.push(toNumberOrNull(row.co2));
+    chartStore.co2.values.push(row.co2);
 
     chartStore.tvoc.labels.push(label);
-    chartStore.tvoc.values.push(toNumberOrNull(row.tvoc));
+    chartStore.tvoc.values.push(row.tvoc);
   });
 
+  // 不足 20 筆時，左邊補空白，最新仍在最右邊
   padChartTo20();
 
   const nonEmpty = chartStore.co2.labels.filter((x) => x !== "");
