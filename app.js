@@ -561,3 +561,49 @@ function extractChartLabel(timeText) {
 
 updateDisplayedChart("co2");
 console.log("app.js loaded");
+function initRealtimeChartFromCSV(csvText) {
+  const rows = csvText
+    .split("\n")
+    .map(row => row.trim())
+    .filter(row => row.length > 0);
+
+  if (rows.length <= 1) return; // 只有表頭或沒資料
+
+  // 清空原本即時圖表資料
+  for (const key of Object.keys(chartStore)) {
+    chartStore[key].labels = [];
+    chartStore[key].values = [];
+  }
+
+  // 去掉表頭，只取最後 20 筆
+  const dataRows = rows.slice(1).map(row => row.split(","));
+  const lastRows = dataRows.slice(-MAX_CHART_POINTS);
+
+  for (const cols of lastRows) {
+    if (cols.length < 5) continue;
+
+    const time = cols[0];
+    const mq7 = Number(cols[1]);
+    const dust = Number(cols[2]);
+    const co2 = Number(cols[3]);
+    const tvoc = Number(cols[4]);
+
+    const label = extractChartLabel(time); // 例如 16:00
+
+    chartStore.mq7.labels.push(label);
+    chartStore.mq7.values.push(mq7);
+
+    chartStore.dust.labels.push(label);
+    chartStore.dust.values.push(dust);
+
+    chartStore.co2.labels.push(label);
+    chartStore.co2.values.push(co2);
+
+    chartStore.tvoc.labels.push(label);
+    chartStore.tvoc.values.push(tvoc);
+  }
+
+  // 回到即時圖表模式
+  chartUsingHistoryData = false;
+  updateDisplayedChart(chartSelector ? chartSelector.value : "co2");
+}
