@@ -67,6 +67,21 @@ function formatTimeForCsv(date = new Date()) {
   return `${y}/${mo}/${d} ${h}:${mi}`;
 }
 
+function normalizeArduinoTimeToMinute(timeStr) {
+  if (!timeStr) return "";
+
+  const clean = String(timeStr).trim();
+
+  // 支援：
+  // YYYY/MM/DD HH:MM
+  // YYYY/MM/DD HH:MM:SS
+  let m = clean.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return clean;
+
+  const [, y, mo, d, h, mi] = m;
+  return `${y}/${mo}/${d} ${h}:${mi}`;
+}
+
 function extractMinuteLabel(timeStr) {
   if (!timeStr) return "";
 
@@ -392,7 +407,14 @@ function initChart(csv) {
 }
 
 function appendDataRow(data) {
-  const nowText = formatTimeForCsv(new Date());
+  let nowText = "";
+
+  if (data.time) {
+    nowText = normalizeArduinoTimeToMinute(data.time);
+  } else {
+    nowText = formatTimeForCsv(new Date());
+  }
+
   const minuteLabel = extractMinuteLabel(nowText);
 
   if (minuteLabel === lastMinute) {
@@ -421,40 +443,33 @@ function parseSerialLine(line) {
 
   updateRawData(clean);
 
-  try {
-    if (clean.startsWith("{") && clean.endsWith("}")) {
-      const obj = JSON.parse(clean);
-      return {
-        mq7: toNumberOrNull(obj.mq7),
-        dust: toNumberOrNull(obj.dust),
-        co2: toNumberOrNull(obj.co2),
-        tvoc: toNumberOrNull(obj.tvoc)
-      };
-    }
-  } catch (err) {
-    console.warn("JSON 解析失敗，改用一般格式");
+  // 只處理即時資料
+  if (!clean.startsWith("TYPE=LIVE")) {
+    return null;
   }
 
   const result = {
+    time: "",
     mq7: null,
     dust: null,
     co2: null,
     tvoc: null
   };
 
-  const parts = clean.split(/[, ]+/).filter(Boolean);
+  const parts = clean.split("|").map((p) => p.trim());
 
   parts.forEach((part) => {
-    const [k, v] = part.split(":");
-    if (!k || v == null) return;
+    const eqIndex = part.indexOf("=");
+    if (eqIndex === -1) return;
 
-    const key = k.trim().toLowerCase();
-    const value = toNumberOrNull(v);
+    const key = part.slice(0, eqIndex).trim().toLowerCase();
+    const value = part.slice(eqIndex + 1).trim();
 
-    if (key === "mq7") result.mq7 = value;
-    if (key === "dust") result.dust = value;
-    if (key === "co2") result.co2 = value;
-    if (key === "tvoc") result.tvoc = value;
+    if (key === "time") result.time = value;
+    if (key === "mq7") result.mq7 = toNumberOrNull(value);
+    if (key === "dust") result.dust = toNumberOrNull(value);
+    if (key === "co2") result.co2 = toNumberOrNull(value);
+    if (key === "tvoc") result.tvoc = toNumberOrNull(value);
   });
 
   const hasAny =
