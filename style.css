@@ -99,21 +99,6 @@ button:hover {
   background: #1d4ed8;
 }
 
-button.small {
-  padding: 8px 14px;
-  font-size: 14px;
-  border-radius: 10px;
-}
-
-button.danger {
-  background: #ef4444 !important;
-  color: #ffffff;
-}
-
-button.danger:hover {
-  background: #dc2626 !important;
-}
-
 select,
 input {
   width: 100%;
@@ -125,8 +110,7 @@ input {
 }
 
 #status,
-#downloadStatus,
-.danger-hint {
+#downloadStatus {
   color: #64748b;
 }
 
@@ -171,20 +155,39 @@ pre {
   flex: 1;
 }
 
+/* ===== 只調整清除資料區 ===== */
+
+button.small {
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+button.danger {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+button.danger:hover {
+  background: #dc2626 !important;
+}
+
 .danger-row {
-  margin-top: 16px;
+  margin-top: 12px;
   display: flex;
   justify-content: flex-end;
 }
 
 .danger-box {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
 .danger-hint {
   font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
@@ -196,8 +199,7 @@ pre {
   .top-bar,
   .chart-header,
   .query-row,
-  .download-row,
-  .danger-box {
+  .download-row {
     flex-direction: column;
     align-items: stretch;
   }
@@ -212,6 +214,16 @@ pre {
   }
 
   .danger-row {
-    justify-content: stretch;
+    justify-content: flex-start;
+  }
+
+  .danger-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .danger-hint {
+    white-space: normal;
   }
 }
