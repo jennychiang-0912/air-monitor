@@ -446,33 +446,29 @@ function clearHistory() {
 function setupClearButton() {
   if (!els.clearBtn) return;
 
-  els.clearBtn.addEventListener("mousedown", () => {
+  const startHold = (e) => {
+    if (e.type === "touchstart") e.preventDefault();
+
     els.clearBtn.textContent = "按住中...";
     clearTimer = setTimeout(() => {
-      els.clearBtn.textContent = "清除資料";
+      els.clearBtn.textContent = "⚠ 清除資料";
       const ok = confirm("⚠️ 確定要清除所有歷史資料嗎？此操作無法復原！");
       if (ok) clearHistory();
     }, 2000);
-  });
+  };
 
   const cancelHold = () => {
     clearTimeout(clearTimer);
-    if (els.clearBtn) els.clearBtn.textContent = "清除資料";
+    els.clearBtn.textContent = "⚠ 清除資料";
   };
 
+  els.clearBtn.addEventListener("mousedown", startHold);
   els.clearBtn.addEventListener("mouseup", cancelHold);
   els.clearBtn.addEventListener("mouseleave", cancelHold);
-  els.clearBtn.addEventListener("touchend", cancelHold);
 
-  els.clearBtn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    els.clearBtn.textContent = "按住中...";
-    clearTimer = setTimeout(() => {
-      els.clearBtn.textContent = "清除資料";
-      const ok = confirm("⚠️ 確定要清除所有歷史資料嗎？此操作無法復原！");
-      if (ok) clearHistory();
-    }, 2000);
-  }, { passive: false });
+  els.clearBtn.addEventListener("touchstart", startHold, { passive: false });
+  els.clearBtn.addEventListener("touchend", cancelHold);
+  els.clearBtn.addEventListener("touchcancel", cancelHold);
 }
 
 async function disconnectSerial() {
