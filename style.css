@@ -92,7 +92,7 @@ button {
   background: #2563eb;
   color: #ffffff;
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 button:hover {
@@ -106,11 +106,12 @@ button.small {
 }
 
 button.danger {
-  background: #ef4444;
+  background: #ef4444 !important;
+  color: #ffffff;
 }
 
 button.danger:hover {
-  background: #dc2626;
+  background: #dc2626 !important;
 }
 
 select,
@@ -149,6 +150,7 @@ pre {
 
 .chart-header select {
   width: 140px;
+  flex: 0 0 140px;
 }
 
 .chart-container {
@@ -158,8 +160,7 @@ pre {
 
 .download-row,
 .query-row,
-.btn-row,
-.danger-row {
+.btn-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -171,7 +172,19 @@ pre {
 }
 
 .danger-row {
+  margin-top: 16px;
+  display: flex;
   justify-content: flex-end;
+}
+
+.danger-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.danger-hint {
+  font-size: 13px;
 }
 
 @media (max-width: 768px) {
@@ -184,7 +197,7 @@ pre {
   .chart-header,
   .query-row,
   .download-row,
-  .danger-row {
+  .danger-box {
     flex-direction: column;
     align-items: stretch;
   }
@@ -195,6 +208,7 @@ pre {
 
   .chart-header select {
     width: 100%;
+    flex: none;
   }
 
   .danger-row {
