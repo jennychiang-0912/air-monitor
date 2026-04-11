@@ -8,100 +8,94 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="container">
+    <header class="header-row">
+      <div>
+        <h1>即時空氣品質監測系統</h1>
+        <p class="subtitle">Arduino + Web Serial 即時監測</p>
+      </div>
+      <div id="timeValue" class="time-display">--</div>
+    </header>
 
-<div class="container">
+    <section class="top-bar">
+      <button id="connectBtn">連接 Arduino</button>
+      <span id="status">尚未連接</span>
+    </section>
 
-  <div class="header-row">
-    <h1>即時空氣品質監測系統</h1>
-    <div id="timeValue" class="time-display">--</div>
+    <section class="card-grid">
+      <div class="card">
+        <h2>一氧化碳（CO）</h2>
+        <small>由 MQ-7 感測器測得</small>
+        <p id="mq7Value" class="value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>粉塵濃度</h2>
+        <small>空氣中懸浮粒子變化</small>
+        <p id="dustValue" class="value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>二氧化碳（CO₂）</h2>
+        <small>由 CCS811 感測器測得</small>
+        <p id="co2Value" class="value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>總揮發性有機物（TVOC）</h2>
+        <small>空氣污染程度指標</small>
+        <p id="tvocValue" class="value">--</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>最近收到的原始資料</h2>
+      <pre id="rawData">等待資料中...</pre>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-header">
+        <h2 id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
+        <select id="chartSelector">
+          <option value="co2">CO₂</option>
+          <option value="mq7">CO</option>
+          <option value="dust">Dust</option>
+          <option value="tvoc">TVOC</option>
+        </select>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>資料下載</h2>
+      <small>下載目前儲存的 CSV 資料</small>
+      <div class="download-row">
+        <button id="downloadCsvBtn">下載全部 CSV</button>
+        <span id="downloadStatus">尚未下載</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>歷史資料查詢</h2>
+      <small>格式：YYYY/MM/DD HH</small>
+
+      <div class="query-row">
+        <input id="startTime" placeholder="開始：2026/03/22 10">
+        <input id="endTime" placeholder="結束：2026/03/22 14">
+      </div>
+
+      <div class="btn-row">
+        <button id="queryBtn">查詢資料</button>
+        <button id="clearBtn">清除資料</button>
+      </div>
+
+      <pre id="historyOutput">尚未查詢</pre>
+    </section>
   </div>
 
-  <p class="subtitle">Arduino + Web Serial 即時監測</p>
-
-  <div class="top-bar">
-    <button id="connectBtn">連接 Arduino</button>
-    <span id="status">尚未連接</span>
-  </div>
-
-  <div class="card-grid">
-
-    <div class="card">
-      <h2>一氧化碳（CO）</h2>
-      <small>由 MQ-7 感測器測得</small>
-      <p id="mq7Value" class="value">--</p>
-    </div>
-
-    <div class="card">
-      <h2>粉塵濃度</h2>
-      <small>空氣中懸浮粒子變化</small>
-      <p id="dustValue" class="value">--</p>
-    </div>
-
-    <div class="card">
-      <h2>二氧化碳（CO₂）</h2>
-      <small>由 CCS811 感測器測得</small>
-      <p id="co2Value" class="value">--</p>
-    </div>
-
-    <div class="card">
-      <h2>總揮發性有機物（TVOC）</h2>
-      <small>空氣污染程度指標</small>
-      <p id="tvocValue" class="value">--</p>
-    </div>
-
-  </div>
-
-  <div class="card">
-    <h2>最近收到的原始資料</h2>
-    <pre id="rawData">等待資料中...</pre>
-  </div>
-
-  <div class="card chart-card">
-    <div class="chart-header">
-      <h2 id="chartTitle">二氧化碳（CO₂）每分鐘變化</h2>
-
-      <select id="chartSelector">
-        <option value="co2">CO₂</option>
-        <option value="mq7">CO</option>
-        <option value="dust">Dust</option>
-        <option value="tvoc">TVOC</option>
-      </select>
-    </div>
-
-    <div class="chart-container">
-      <canvas id="mainChart"></canvas>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>資料下載</h2>
-    <small>將 Arduino EEPROM 中已儲存的資料匯出成 CSV</small>
-
-    <div class="download-row">
-      <button id="downloadCsvBtn">下載全部 CSV</button>
-      <span id="downloadStatus">尚未下載</span>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>歷史資料查詢</h2>
-    <small>格式：YYYY/MM/DD HH</small>
-
-    <div class="query-row">
-      <input id="startTime" placeholder="開始：2026/03/22 10">
-      <input id="endTime" placeholder="結束：2026/03/22 14">
-    </div>
-
-    <div class="btn-row">
-      <button id="queryBtn">查詢資料</button>
-      <button id="clearBtn">清除資料</button>
-    </div>
-
-    <pre id="historyOutput">尚未查詢</pre>
-  </div>
-
-</div>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
