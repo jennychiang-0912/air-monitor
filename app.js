@@ -4,6 +4,7 @@ let inputDone = null;
 let keepReading = false;
 let chart = null;
 let lastMinute = null;
+let clearTimer = null;
 
 const MAX_POINTS = 20;
 const STORAGE_KEY = "air_monitor_history_csv";
@@ -39,8 +40,7 @@ function setCardValues(data) {
 
 function updateHeaderTime() {
   if (!els.timeValue) return;
-  const now = new Date();
-  els.timeValue.textContent = formatDateTime(now, true);
+  els.timeValue.textContent = formatDateTime(new Date(), true);
 }
 
 function formatDateTime(date, withSeconds = false) {
@@ -61,6 +61,7 @@ function normalizeTimeToMinute(timeStr) {
   const clean = String(timeStr).trim();
   const m = clean.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
   if (!m) return clean;
+
   const [, y, mo, d, h, mi] = m;
   return `${y}/${mo}/${d} ${h}:${mi}`;
 }
@@ -181,7 +182,9 @@ function drawChart(type) {
               minRotation: 0
             }
           },
-          y: { beginAtZero: true }
+          y: {
+            beginAtZero: true
+          }
         }
       }
     });
@@ -240,6 +243,7 @@ function rebuildChartFromCsv(csv) {
 
   parsed.forEach((row) => {
     const label = minuteLabel(row.time);
+
     chartStore.mq7.labels.push(label);
     chartStore.mq7.values.push(row.mq7);
 
@@ -439,6 +443,38 @@ function clearHistory() {
   drawChart(els.chartSelector?.value || "co2");
 }
 
+function setupClearButton() {
+  if (!els.clearBtn) return;
+
+  els.clearBtn.addEventListener("mousedown", () => {
+    els.clearBtn.textContent = "按住中...";
+    clearTimer = setTimeout(() => {
+      els.clearBtn.textContent = "清除資料";
+      const ok = confirm("⚠️ 確定要清除所有歷史資料嗎？此操作無法復原！");
+      if (ok) clearHistory();
+    }, 2000);
+  });
+
+  const cancelHold = () => {
+    clearTimeout(clearTimer);
+    if (els.clearBtn) els.clearBtn.textContent = "清除資料";
+  };
+
+  els.clearBtn.addEventListener("mouseup", cancelHold);
+  els.clearBtn.addEventListener("mouseleave", cancelHold);
+  els.clearBtn.addEventListener("touchend", cancelHold);
+
+  els.clearBtn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    els.clearBtn.textContent = "按住中...";
+    clearTimer = setTimeout(() => {
+      els.clearBtn.textContent = "清除資料";
+      const ok = confirm("⚠️ 確定要清除所有歷史資料嗎？此操作無法復原！");
+      if (ok) clearHistory();
+    }, 2000);
+  }, { passive: false });
+}
+
 async function disconnectSerial() {
   keepReading = false;
 
@@ -538,6 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(updateHeaderTime, 1000);
 
   loadCsv();
+  setupClearButton();
 
   els.chartSelector?.addEventListener("change", () => {
     drawChart(els.chartSelector.value);
@@ -546,7 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
   els.connectBtn?.addEventListener("click", connectSerial);
   els.downloadCsvBtn?.addEventListener("click", downloadCsv);
   els.queryBtn?.addEventListener("click", queryHistory);
-  els.clearBtn?.addEventListener("click", clearHistory);
 
   drawChart(els.chartSelector?.value || "co2");
 });
