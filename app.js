@@ -8,13 +8,14 @@ let clearTimer = null;
 
 const MAX_POINTS = 20;
 const STORAGE_KEY = "air_monitor_history_csv";
-let rawCsv = "time,mq7,dust,co2,tvoc\n";
+let rawCsv = "time,mq7,dust,co2,tvoc,aqi\n";
 
 const chartStore = {
   mq7: { labels: [], values: [] },
   dust: { labels: [], values: [] },
   co2: { labels: [], values: [] },
-  tvoc: { labels: [], values: [] }
+  tvoc: { labels: [], values: [] },
+  aqi: { labels: [], values: [] }
 };
 
 const els = {};
@@ -116,7 +117,8 @@ function getChartTitle(type) {
     mq7: "一氧化碳（CO）每分鐘變化",
     dust: "粉塵濃度每分鐘變化",
     co2: "二氧化碳（CO₂）每分鐘變化",
-    tvoc: "總揮發性有機物（TVOC）每分鐘變化"
+    tvoc: "總揮發性有機物（TVOC）每分鐘變化",
+    aqi: "模擬即時 AQI 變化"
   };
   return titles[type] || titles.co2;
 }
@@ -205,7 +207,6 @@ function saveCsv() {
   }
 }
 
-/* ===== 新增：把 PM2.5 對應成 AQI ===== */
 function pm25ToAQI(pm25) {
   if (pm25 == null || !Number.isFinite(pm25)) return null;
 
@@ -231,7 +232,6 @@ function pm25ToAQI(pm25) {
   return null;
 }
 
-/* ===== 新增：從 CSV 取出歷史資料 ===== */
 function getHistoryRowsFromCsv(csv) {
   const rows = String(csv || "")
     .replace(/\r/g, "")
@@ -245,7 +245,7 @@ function getHistoryRowsFromCsv(csv) {
   return rows
     .slice(1)
     .map((r) => {
-      const [time, mq7, dust, co2, tvoc] = r.split(",").map((x) => x.trim());
+      const [time, mq7, dust, co2, tvoc, aqi] = r.split(",").map((x) => x.trim());
       const ts = parseMinuteTimestamp(time);
       if (isNaN(ts)) return null;
 
@@ -255,6 +255,7 @@ function getHistoryRowsFromCsv(csv) {
         dust: toNumberOrNull(dust),
         co2: toNumberOrNull(co2),
         tvoc: toNumberOrNull(tvoc),
+        aqi: toNumberOrNull(aqi),
         ts
       };
     })
@@ -262,7 +263,6 @@ function getHistoryRowsFromCsv(csv) {
     .sort((a, b) => a.ts - b.ts);
 }
 
-/* ===== 新增：計算模擬即時 AQI ===== */
 function calculateSimulatedAQIFromHistory(historyRows) {
   if (!Array.isArray(historyRows) || historyRows.length === 0) return null;
 
@@ -301,7 +301,6 @@ function calculateSimulatedAQIFromHistory(historyRows) {
   };
 }
 
-/* ===== 新增：更新 AQI 卡片 ===== */
 function updateSimulatedAqiCard() {
   if (!els.simAqiValue || !els.simAqiDetail) return;
 
@@ -341,7 +340,7 @@ function rebuildChartFromCsv(csv) {
   const parsed = rows
     .slice(1)
     .map((r) => {
-      const [time, mq7, dust, co2, tvoc] = r.split(",").map((x) => x.trim());
+      const [time, mq7, dust, co2, tvoc, aqi] = r.split(",").map((x) => x.trim());
       const ts = parseMinuteTimestamp(time);
       if (isNaN(ts)) return null;
 
@@ -351,6 +350,7 @@ function rebuildChartFromCsv(csv) {
         dust: toNumberOrNull(dust),
         co2: toNumberOrNull(co2),
         tvoc: toNumberOrNull(tvoc),
+        aqi: toNumberOrNull(aqi),
         ts
       };
     })
@@ -372,6 +372,9 @@ function rebuildChartFromCsv(csv) {
 
     chartStore.tvoc.labels.push(label);
     chartStore.tvoc.values.push(row.tvoc);
+
+    chartStore.aqi.labels.push(label);
+    chartStore.aqi.values.push(row.aqi);
   });
 
   padAllStores();
@@ -425,12 +428,15 @@ function addDataRow(data) {
 
   lastMinute = label;
 
+  const instantAqi = data.dust != null ? pm25ToAQI(data.dust) : null;
+
   const row = [
     timeText,
     data.mq7 ?? "",
     data.dust ?? "",
     data.co2 ?? "",
-    data.tvoc ?? ""
+    data.tvoc ?? "",
+    instantAqi ?? ""
   ].join(",");
 
   rawCsv += row + "\n";
@@ -531,19 +537,19 @@ function queryHistory() {
 
   const matched = rows.slice(1).filter((r) => {
     const cols = r.split(",").map((c) => c.trim());
-    if (cols.length < 5) return false;
+    if (cols.length < 6) return false;
 
     const ts = parseMinuteTimestamp(cols[0]);
     return !isNaN(ts) && ts >= startTs && ts <= endTs;
   });
 
   els.historyOutput.textContent = matched.length
-    ? ["time,mq7,dust,co2,tvoc", ...matched].join("\n")
+    ? ["time,mq7,dust,co2,tvoc,aqi", ...matched].join("\n")
     : "查無資料";
 }
 
 function clearHistory() {
-  rawCsv = "time,mq7,dust,co2,tvoc\n";
+  rawCsv = "time,mq7,dust,co2,tvoc,aqi\n";
   lastMinute = null;
 
   resetChartStore();
