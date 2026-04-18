@@ -52,7 +52,7 @@ h1 {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 
@@ -71,10 +71,12 @@ h1 {
 
 .card small {
   color: #64748b;
+  display: block;
+  line-height: 1.5;
 }
 
 .value {
-  margin: 24px 0 0;
+  margin: 24px 0 10px;
   font-size: 34px;
   font-weight: 700;
 }
@@ -154,8 +156,6 @@ pre {
 .query-row input {
   flex: 1;
 }
-
-/* ===== 只調整清除資料區 ===== */
 
 button.small {
   padding: 8px 14px;
