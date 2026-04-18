@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>即時空氣品質監測系統</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div class="container">
@@ -45,6 +45,13 @@
         <h2>總揮發性有機物（TVOC）</h2>
         <small>空氣污染程度指標</small>
         <p id="tvocValue" class="value">--</p>
+      </div>
+
+      <div class="card">
+        <h2>模擬即時 AQI</h2>
+        <small>以 PM2.5 加權值估算</small>
+        <p id="simAqiValue" class="value">--</p>
+        <small id="simAqiDetail">前4小時至少2筆、前12小時至少6筆資料</small>
       </div>
     </section>
 
