@@ -7,7 +7,9 @@ let lastMinute = null;
 let clearTimer = null;
 
 const MAX_POINTS = 20;
-const STORAGE_KEY = "air_monitor_history_csv";
+const STORAGE_KEY = "air_monitor_history_csv_v2";
+const PM25_SCALE = 0.1;
+
 let rawCsv = "time,mq7,dust,co2,tvoc,aqi\n";
 
 const chartStore = {
@@ -107,7 +109,7 @@ function parseHourTimestamp(hourStr, endOfHour = false) {
 }
 
 function toNumberOrNull(value) {
-  if (value == null) return null;
+  if (value == null || value === "") return null;
   const n = Number(String(value).trim());
   return Number.isFinite(n) ? n : null;
 }
@@ -118,7 +120,7 @@ function getChartTitle(type) {
     dust: "粉塵濃度每分鐘變化",
     co2: "二氧化碳（CO₂）每分鐘變化",
     tvoc: "總揮發性有機物（TVOC）每分鐘變化",
-    aqi: "模擬即時 AQI 變化"
+    aqi: "估算 AQI 每分鐘變化"
   };
   return titles[type] || titles.co2;
 }
@@ -135,6 +137,7 @@ function padStore(store) {
     store.labels.unshift("");
     store.values.unshift(null);
   }
+
   if (store.labels.length > MAX_POINTS) {
     store.labels = store.labels.slice(-MAX_POINTS);
     store.values = store.values.slice(-MAX_POINTS);
@@ -232,6 +235,11 @@ function pm25ToAQI(pm25) {
   return null;
 }
 
+function getCorrectedPm25(dust) {
+  if (dust == null || !Number.isFinite(dust)) return null;
+  return Number((dust * PM25_SCALE).toFixed(2));
+}
+
 function getHistoryRowsFromCsv(csv) {
   const rows = String(csv || "")
     .replace(/\r/g, "")
@@ -282,19 +290,17 @@ function calculateSimulatedAQIFromHistory(historyRows) {
     return null;
   }
 
-  const avg4h =
-    valid4h.reduce((sum, row) => sum + row.dust, 0) / valid4h.length;
+  const avg4h = valid4h.reduce((sum, row) => sum + row.dust, 0) / valid4h.length;
+  const avg12h = valid12h.reduce((sum, row) => sum + row.dust, 0) / valid12h.length;
 
-  const avg12h =
-    valid12h.reduce((sum, row) => sum + row.dust, 0) / valid12h.length;
-
-  const simulatedPm25 = 0.5 * avg12h + 0.5 * avg4h;
+  const simulatedPm25Raw = 0.5 * avg12h + 0.5 * avg4h;
+  const simulatedPm25 = Number((simulatedPm25Raw * PM25_SCALE).toFixed(2));
   const simulatedAqi = pm25ToAQI(simulatedPm25);
 
   return {
     avg4h: Number(avg4h.toFixed(2)),
     avg12h: Number(avg12h.toFixed(2)),
-    simulatedPm25: Number(simulatedPm25.toFixed(2)),
+    simulatedPm25,
     simulatedAqi,
     count4h: valid4h.length,
     count12h: valid12h.length
@@ -317,7 +323,7 @@ function updateSimulatedAqiCard() {
     result.simulatedAqi != null ? result.simulatedAqi : "--";
 
   els.simAqiDetail.textContent =
-    `PM2.5加權值 ${result.simulatedPm25}｜4h平均 ${result.avg4h}（${result.count4h}筆）｜12h平均 ${result.avg12h}（${result.count12h}筆）`;
+    `校正PM2.5 ${result.simulatedPm25}｜4h平均 ${result.avg4h}（${result.count4h}筆）｜12h平均 ${result.avg12h}（${result.count12h}筆）`;
 }
 
 function rebuildChartFromCsv(csv) {
@@ -428,7 +434,8 @@ function addDataRow(data) {
 
   lastMinute = label;
 
-  const instantAqi = data.dust != null ? pm25ToAQI(data.dust) : null;
+  const correctedPm25 = getCorrectedPm25(data.dust);
+  const instantAqi = correctedPm25 != null ? pm25ToAQI(correctedPm25) : null;
 
   const row = [
     timeText,
