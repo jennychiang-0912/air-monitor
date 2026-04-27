@@ -3,15 +3,23 @@ let reader = null;
 let inputDone = null;
 let keepReading = false;
 let chart = null;
+let hourChart = null;
 let lastMinute = null;
 let clearTimer = null;
 
 const MAX_POINTS = 20;
-const STORAGE_KEY = "air_monitor_history_csv_v3";
+const STORAGE_KEY = "air_monitor_history_csv_v4";
 
 let rawCsv = "time,mq7,dust,co2,tvoc\n";
 
 const chartStore = {
+  mq7: { labels: [], values: [] },
+  dust: { labels: [], values: [] },
+  co2: { labels: [], values: [] },
+  tvoc: { labels: [], values: [] }
+};
+
+const hourlyChartStore = {
   mq7: { labels: [], values: [] },
   dust: { labels: [], values: [] },
   co2: { labels: [], values: [] },
@@ -74,6 +82,20 @@ function minuteLabel(timeStr) {
   return `${m[4]}:${m[5]}`;
 }
 
+function hourLabel(timeStr) {
+  if (!timeStr) return "";
+  const m = String(timeStr).trim().match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
+  if (!m) return "";
+  return `${m[4]}:00`;
+}
+
+function hourKey(timeStr) {
+  if (!timeStr) return "";
+  const m = String(timeStr).trim().match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
+  if (!m) return "";
+  return `${m[1]}/${m[2]}/${m[3]} ${m[4]}:00`;
+}
+
 function parseMinuteTimestamp(timeStr) {
   if (!timeStr) return NaN;
   const m = String(timeStr).trim().match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
@@ -122,10 +144,27 @@ function getChartTitle(type) {
   return titles[type] || titles.co2;
 }
 
+function getHourChartTitle(type) {
+  const titles = {
+    mq7: "一氧化碳（CO）每小時平均變化",
+    dust: "粉塵濃度每小時平均變化",
+    co2: "二氧化碳（CO₂）每小時平均變化",
+    tvoc: "總揮發性有機物（TVOC）每小時平均變化"
+  };
+  return titles[type] || titles.co2;
+}
+
 function resetChartStore() {
   Object.keys(chartStore).forEach((key) => {
     chartStore[key].labels = [];
     chartStore[key].values = [];
+  });
+}
+
+function resetHourlyChartStore() {
+  Object.keys(hourlyChartStore).forEach((key) => {
+    hourlyChartStore[key].labels = [];
+    hourlyChartStore[key].values = [];
   });
 }
 
@@ -143,6 +182,10 @@ function padStore(store) {
 
 function padAllStores() {
   Object.values(chartStore).forEach(padStore);
+}
+
+function padAllHourlyStores() {
+  Object.values(hourlyChartStore).forEach(padStore);
 }
 
 function drawChart(type) {
@@ -199,6 +242,60 @@ function drawChart(type) {
   chart.update();
 }
 
+function drawHourChart(type) {
+  const canvas = $("hourChart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const dataSet = hourlyChartStore[type] || hourlyChartStore.co2;
+
+  if (els.hourChartTitle) {
+    els.hourChartTitle.textContent = getHourChartTitle(type);
+  }
+
+  if (!hourChart) {
+    hourChart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: dataSet.labels,
+        datasets: [{
+          label: getHourChartTitle(type),
+          data: dataSet.values,
+          tension: 0.25,
+          spanGaps: true,
+          borderWidth: 2,
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: true }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: false,
+              maxRotation: 0,
+              minRotation: 0
+            }
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  hourChart.data.labels = dataSet.labels;
+  hourChart.data.datasets[0].label = getHourChartTitle(type);
+  hourChart.data.datasets[0].data = dataSet.values;
+  hourChart.update();
+}
+
 function saveCsv() {
   try {
     localStorage.setItem(STORAGE_KEY, rawCsv);
@@ -220,6 +317,7 @@ function rebuildChartFromCsv(csv) {
   if (rows.length <= 1) {
     padAllStores();
     drawChart(els.chartSelector?.value || "co2");
+    rebuildHourlyChartFromCsv(csv);
     return;
   }
 
@@ -265,6 +363,90 @@ function rebuildChartFromCsv(csv) {
   lastMinute = nonEmpty.length ? nonEmpty[nonEmpty.length - 1] : null;
 
   drawChart(els.chartSelector?.value || "co2");
+  rebuildHourlyChartFromCsv(csv);
+}
+
+function rebuildHourlyChartFromCsv(csv) {
+  resetHourlyChartStore();
+
+  const rows = String(csv || "")
+    .replace(/\r/g, "")
+    .trim()
+    .split("\n")
+    .map((r) => r.trim())
+    .filter(Boolean);
+
+  if (rows.length <= 1) {
+    padAllHourlyStores();
+    drawHourChart(els.hourChartSelector?.value || "co2");
+    return;
+  }
+
+  const parsed = rows
+    .slice(1)
+    .map((r) => {
+      const [time, mq7, dust, co2, tvoc] = r.split(",").map((x) => x.trim());
+      const ts = parseMinuteTimestamp(time);
+      if (isNaN(ts)) return null;
+
+      return {
+        time,
+        hour: hourKey(time),
+        label: hourLabel(time),
+        mq7: toNumberOrNull(mq7),
+        dust: toNumberOrNull(dust),
+        co2: toNumberOrNull(co2),
+        tvoc: toNumberOrNull(tvoc),
+        ts
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.ts - b.ts);
+
+  const hourlyMap = new Map();
+
+  parsed.forEach((row) => {
+    if (!hourlyMap.has(row.hour)) {
+      hourlyMap.set(row.hour, {
+        label: row.label,
+        mq7: [],
+        dust: [],
+        co2: [],
+        tvoc: []
+      });
+    }
+
+    const group = hourlyMap.get(row.hour);
+
+    if (row.mq7 !== null) group.mq7.push(row.mq7);
+    if (row.dust !== null) group.dust.push(row.dust);
+    if (row.co2 !== null) group.co2.push(row.co2);
+    if (row.tvoc !== null) group.tvoc.push(row.tvoc);
+  });
+
+  function avg(arr) {
+    if (!arr.length) return null;
+    return Number((arr.reduce((sum, v) => sum + v, 0) / arr.length).toFixed(2));
+  }
+
+  const hourlyRows = Array.from(hourlyMap.values()).slice(-MAX_POINTS);
+
+  hourlyRows.forEach((row) => {
+    hourlyChartStore.mq7.labels.push(row.label);
+    hourlyChartStore.mq7.values.push(avg(row.mq7));
+
+    hourlyChartStore.dust.labels.push(row.label);
+    hourlyChartStore.dust.values.push(avg(row.dust));
+
+    hourlyChartStore.co2.labels.push(row.label);
+    hourlyChartStore.co2.values.push(avg(row.co2));
+
+    hourlyChartStore.tvoc.labels.push(row.label);
+    hourlyChartStore.tvoc.values.push(avg(row.tvoc));
+  });
+
+  padAllHourlyStores();
+  drawHourChart(els.hourChartSelector?.value || "co2");
 }
 
 function loadCsv() {
@@ -431,7 +613,9 @@ function clearHistory() {
   lastMinute = null;
 
   resetChartStore();
+  resetHourlyChartStore();
   padAllStores();
+  padAllHourlyStores();
 
   setCardValues({ mq7: "--", dust: "--", co2: "--", tvoc: "--" });
   setRawData("等待資料中...");
@@ -443,6 +627,7 @@ function clearHistory() {
 
   saveCsv();
   drawChart(els.chartSelector?.value || "co2");
+  drawHourChart(els.hourChartSelector?.value || "co2");
 }
 
 function setupClearButton() {
@@ -562,6 +747,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "connectBtn", "status", "timeValue",
     "mq7Value", "dustValue", "co2Value", "tvocValue",
     "rawData", "chartTitle", "chartSelector",
+    "hourChartTitle", "hourChartSelector",
     "downloadCsvBtn", "downloadStatus",
     "startTime", "endTime", "queryBtn", "clearBtn", "historyOutput"
   ].forEach((id) => {
@@ -578,9 +764,14 @@ document.addEventListener("DOMContentLoaded", () => {
     drawChart(els.chartSelector.value);
   });
 
+  els.hourChartSelector?.addEventListener("change", () => {
+    drawHourChart(els.hourChartSelector.value);
+  });
+
   els.connectBtn?.addEventListener("click", connectSerial);
   els.downloadCsvBtn?.addEventListener("click", downloadCsv);
   els.queryBtn?.addEventListener("click", queryHistory);
 
   drawChart(els.chartSelector?.value || "co2");
+  drawHourChart(els.hourChartSelector?.value || "co2");
 });
