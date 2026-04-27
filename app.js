@@ -7,17 +7,15 @@ let lastMinute = null;
 let clearTimer = null;
 
 const MAX_POINTS = 20;
-const STORAGE_KEY = "air_monitor_history_csv_v2";
-const PM25_SCALE = 0.1;
+const STORAGE_KEY = "air_monitor_history_csv_v3";
 
-let rawCsv = "time,mq7,dust,co2,tvoc,aqi\n";
+let rawCsv = "time,mq7,dust,co2,tvoc\n";
 
 const chartStore = {
   mq7: { labels: [], values: [] },
   dust: { labels: [], values: [] },
   co2: { labels: [], values: [] },
-  tvoc: { labels: [], values: [] },
-  aqi: { labels: [], values: [] }
+  tvoc: { labels: [], values: [] }
 };
 
 const els = {};
@@ -119,8 +117,7 @@ function getChartTitle(type) {
     mq7: "一氧化碳（CO）每分鐘變化",
     dust: "粉塵濃度每分鐘變化",
     co2: "二氧化碳（CO₂）每分鐘變化",
-    tvoc: "總揮發性有機物（TVOC）每分鐘變化",
-    aqi: "估算 AQI 每分鐘變化"
+    tvoc: "總揮發性有機物（TVOC）每分鐘變化"
   };
   return titles[type] || titles.co2;
 }
@@ -210,122 +207,6 @@ function saveCsv() {
   }
 }
 
-function pm25ToAQI(pm25) {
-  if (pm25 == null || !Number.isFinite(pm25)) return null;
-
-  const breakpoints = [
-    { cLow: 0.0,   cHigh: 15.4,  iLow: 0,   iHigh: 50 },
-    { cLow: 15.5,  cHigh: 35.4,  iLow: 51,  iHigh: 100 },
-    { cLow: 35.5,  cHigh: 54.4,  iLow: 101, iHigh: 150 },
-    { cLow: 54.5,  cHigh: 150.4, iLow: 151, iHigh: 200 },
-    { cLow: 150.5, cHigh: 250.4, iLow: 201, iHigh: 300 },
-    { cLow: 250.5, cHigh: 350.4, iLow: 301, iHigh: 400 },
-    { cLow: 350.5, cHigh: 500.4, iLow: 401, iHigh: 500 }
-  ];
-
-  for (const bp of breakpoints) {
-    if (pm25 >= bp.cLow && pm25 <= bp.cHigh) {
-      const aqi =
-        ((bp.iHigh - bp.iLow) / (bp.cHigh - bp.cLow)) * (pm25 - bp.cLow) + bp.iLow;
-      return Math.round(aqi);
-    }
-  }
-
-  if (pm25 > 500.4) return 500;
-  return null;
-}
-
-function getCorrectedPm25(dust) {
-  if (dust == null || !Number.isFinite(dust)) return null;
-  return Number((dust * PM25_SCALE).toFixed(2));
-}
-
-function getHistoryRowsFromCsv(csv) {
-  const rows = String(csv || "")
-    .replace(/\r/g, "")
-    .trim()
-    .split("\n")
-    .map((r) => r.trim())
-    .filter(Boolean);
-
-  if (rows.length <= 1) return [];
-
-  return rows
-    .slice(1)
-    .map((r) => {
-      const [time, mq7, dust, co2, tvoc, aqi] = r.split(",").map((x) => x.trim());
-      const ts = parseMinuteTimestamp(time);
-      if (isNaN(ts)) return null;
-
-      return {
-        time,
-        mq7: toNumberOrNull(mq7),
-        dust: toNumberOrNull(dust),
-        co2: toNumberOrNull(co2),
-        tvoc: toNumberOrNull(tvoc),
-        aqi: toNumberOrNull(aqi),
-        ts
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.ts - b.ts);
-}
-
-function calculateSimulatedAQIFromHistory(historyRows) {
-  if (!Array.isArray(historyRows) || historyRows.length === 0) return null;
-
-  const latestTs = historyRows[historyRows.length - 1].ts;
-  const fourHoursMs = 4 * 60 * 60 * 1000;
-  const twelveHoursMs = 12 * 60 * 60 * 1000;
-
-  const valid4h = historyRows.filter((row) => {
-    return row.dust !== null && (latestTs - row.ts) <= fourHoursMs;
-  });
-
-  const valid12h = historyRows.filter((row) => {
-    return row.dust !== null && (latestTs - row.ts) <= twelveHoursMs;
-  });
-
-  if (valid4h.length < 2 || valid12h.length < 6) {
-    return null;
-  }
-
-  const avg4h = valid4h.reduce((sum, row) => sum + row.dust, 0) / valid4h.length;
-  const avg12h = valid12h.reduce((sum, row) => sum + row.dust, 0) / valid12h.length;
-
-  const simulatedPm25Raw = 0.5 * avg12h + 0.5 * avg4h;
-  const simulatedPm25 = Number((simulatedPm25Raw * PM25_SCALE).toFixed(2));
-  const simulatedAqi = pm25ToAQI(simulatedPm25);
-
-  return {
-    avg4h: Number(avg4h.toFixed(2)),
-    avg12h: Number(avg12h.toFixed(2)),
-    simulatedPm25,
-    simulatedAqi,
-    count4h: valid4h.length,
-    count12h: valid12h.length
-  };
-}
-
-function updateSimulatedAqiCard() {
-  if (!els.simAqiValue || !els.simAqiDetail) return;
-
-  const historyRows = getHistoryRowsFromCsv(rawCsv);
-  const result = calculateSimulatedAQIFromHistory(historyRows);
-
-  if (!result) {
-    els.simAqiValue.textContent = "--";
-    els.simAqiDetail.textContent = "前4小時至少2筆、前12小時至少6筆資料";
-    return;
-  }
-
-  els.simAqiValue.textContent =
-    result.simulatedAqi != null ? result.simulatedAqi : "--";
-
-  els.simAqiDetail.textContent =
-    `校正PM2.5 ${result.simulatedPm25}｜4h平均 ${result.avg4h}（${result.count4h}筆）｜12h平均 ${result.avg12h}（${result.count12h}筆）`;
-}
-
 function rebuildChartFromCsv(csv) {
   resetChartStore();
 
@@ -339,14 +220,13 @@ function rebuildChartFromCsv(csv) {
   if (rows.length <= 1) {
     padAllStores();
     drawChart(els.chartSelector?.value || "co2");
-    updateSimulatedAqiCard();
     return;
   }
 
   const parsed = rows
     .slice(1)
     .map((r) => {
-      const [time, mq7, dust, co2, tvoc, aqi] = r.split(",").map((x) => x.trim());
+      const [time, mq7, dust, co2, tvoc] = r.split(",").map((x) => x.trim());
       const ts = parseMinuteTimestamp(time);
       if (isNaN(ts)) return null;
 
@@ -356,7 +236,6 @@ function rebuildChartFromCsv(csv) {
         dust: toNumberOrNull(dust),
         co2: toNumberOrNull(co2),
         tvoc: toNumberOrNull(tvoc),
-        aqi: toNumberOrNull(aqi),
         ts
       };
     })
@@ -378,9 +257,6 @@ function rebuildChartFromCsv(csv) {
 
     chartStore.tvoc.labels.push(label);
     chartStore.tvoc.values.push(row.tvoc);
-
-    chartStore.aqi.labels.push(label);
-    chartStore.aqi.values.push(row.aqi);
   });
 
   padAllStores();
@@ -389,7 +265,6 @@ function rebuildChartFromCsv(csv) {
   lastMinute = nonEmpty.length ? nonEmpty[nonEmpty.length - 1] : null;
 
   drawChart(els.chartSelector?.value || "co2");
-  updateSimulatedAqiCard();
 }
 
 function loadCsv() {
@@ -434,16 +309,12 @@ function addDataRow(data) {
 
   lastMinute = label;
 
-  const correctedPm25 = getCorrectedPm25(data.dust);
-  const instantAqi = correctedPm25 != null ? pm25ToAQI(correctedPm25) : null;
-
   const row = [
     timeText,
     data.mq7 ?? "",
     data.dust ?? "",
     data.co2 ?? "",
-    data.tvoc ?? "",
-    instantAqi ?? ""
+    data.tvoc ?? ""
   ].join(",");
 
   rawCsv += row + "\n";
@@ -544,19 +415,19 @@ function queryHistory() {
 
   const matched = rows.slice(1).filter((r) => {
     const cols = r.split(",").map((c) => c.trim());
-    if (cols.length < 6) return false;
+    if (cols.length < 5) return false;
 
     const ts = parseMinuteTimestamp(cols[0]);
     return !isNaN(ts) && ts >= startTs && ts <= endTs;
   });
 
   els.historyOutput.textContent = matched.length
-    ? ["time,mq7,dust,co2,tvoc,aqi", ...matched].join("\n")
+    ? ["time,mq7,dust,co2,tvoc", ...matched].join("\n")
     : "查無資料";
 }
 
 function clearHistory() {
-  rawCsv = "time,mq7,dust,co2,tvoc,aqi\n";
+  rawCsv = "time,mq7,dust,co2,tvoc\n";
   lastMinute = null;
 
   resetChartStore();
@@ -569,9 +440,6 @@ function clearHistory() {
   if (els.downloadStatus) els.downloadStatus.textContent = "尚未下載";
   if (els.startTime) els.startTime.value = "";
   if (els.endTime) els.endTime.value = "";
-
-  if (els.simAqiValue) els.simAqiValue.textContent = "--";
-  if (els.simAqiDetail) els.simAqiDetail.textContent = "前4小時至少2筆、前12小時至少6筆資料";
 
   saveCsv();
   drawChart(els.chartSelector?.value || "co2");
@@ -693,7 +561,6 @@ document.addEventListener("DOMContentLoaded", () => {
   [
     "connectBtn", "status", "timeValue",
     "mq7Value", "dustValue", "co2Value", "tvocValue",
-    "simAqiValue", "simAqiDetail",
     "rawData", "chartTitle", "chartSelector",
     "downloadCsvBtn", "downloadStatus",
     "startTime", "endTime", "queryBtn", "clearBtn", "historyOutput"
@@ -716,5 +583,4 @@ document.addEventListener("DOMContentLoaded", () => {
   els.queryBtn?.addEventListener("click", queryHistory);
 
   drawChart(els.chartSelector?.value || "co2");
-  updateSimulatedAqiCard();
 });
